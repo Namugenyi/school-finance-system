@@ -109,9 +109,9 @@ async function main() {
     const p = await bursar.post('/api/pupils', {
       fullName: name, sex: rand() < 0.5 ? 'FEMALE' : 'MALE', dateOfBirth: `${cls.kg ? 2021 : 2016 - (Number(cls.name.slice(1)) || 0) + 1}-0${1 + Math.floor(rand() * 9)}-1${Math.floor(rand() * 9)}`,
       dateJoined: `2026-01-${String(10 + Math.floor(rand() * 18)).padStart(2, '0')}`, classId: cls.id,
-      guardianName: `${pick(FIRST)} ${name.split(' ')[1]}`, phonePrimary: `07${String(70000000 + Math.floor(rand() * 9999999)).slice(0, 8)}`,
+      guardianName: `${pick(FIRST)} ${name.split(' ')[1]}`, guardianRelationship: ['MOTHER', 'FATHER', 'MOTHER', 'GUARDIAN', 'GRANDPARENT'][i % 5], phonePrimary: `07${String(70000000 + Math.floor(rand() * 9999999)).slice(0, 8)}`,
       phoneAlt: rand() < 0.4 ? `07${String(50000000 + Math.floor(rand() * 9999999)).slice(0, 8)}` : '', address: `${pick(['Kasangati', 'Gayaza', 'Kiteezi', 'Matugga', 'Wampewo'])}, Wakiso`,
-      emergencyContact: rand() < 0.5 ? `${pick(FIRST)} (aunt) 0701000${100 + i}` : '',
+      ...(rand() < 0.5 ? { emergencyName: `${pick(FIRST)} ${name.split(' ')[1]}`, emergencyRelationship: ['AUNT_UNCLE', 'GRANDPARENT', 'SIBLING'][i % 3], emergencyPhone: `0701000${100 + i}` } : {}),
     });
     pupils.push({ id: p.id, classId: cls.id });
   }

@@ -21,7 +21,7 @@ export async function seedBase(db: PrismaClient, opts: { schoolName?: string; st
     const l = await db.referenceList.upsert({
       where: { code: list.code },
       create: { code: list.code, name: list.name, description: list.description, locked: list.locked, sortOrder: i },
-      update: { locked: list.locked, description: list.description },
+      update: { locked: list.locked, description: list.description, sortOrder: i },
     });
     for (const [j, v] of list.values.entries()) {
       await db.referenceValue.upsert({

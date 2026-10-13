@@ -10,7 +10,7 @@ import type { Charge, Paged } from '../lib/types';
 interface Pupil {
   id: number; pupilCode: string; fullName: string; sex: string; dateOfBirth: string | null; dateJoined: string; classId: number; className: string;
   sectionName: string; status: string; guardianName: string | null; phonePrimary?: string | null; phoneAlt?: string | null; address?: string | null;
-  emergencyContact?: string | null; notes: string | null; dateLeft: string | null; leavingReason: string | null; contactsHidden?: boolean;
+  guardianRelationship: string | null; emergencyName?: string | null; emergencyRelationship?: string | null; emergencyPhone?: string | null; notes: string | null; dateLeft: string | null; leavingReason: string | null; contactsHidden?: boolean;
 }
 interface PupilDetail extends Pupil {
   totals: { netDue: string; totalPaid: string; balance: string };
@@ -68,7 +68,8 @@ export function PupilsPage() {
   );
 }
 
-const emptyForm = { fullName: '', sex: '', dateOfBirth: '', dateJoined: todayIso(), classId: '', guardianName: '', phonePrimary: '', phoneAlt: '', address: '', emergencyContact: '', notes: '' };
+const emptyForm = { fullName: '', sex: '', dateOfBirth: '', dateJoined: todayIso(), classId: '', guardianName: '', guardianRelationship: '', phonePrimary: '', phoneAlt: '', address: '',
+  emergencyName: '', emergencyRelationship: '', emergencyPhone: '', notes: '' };
 
 export function PupilFormPage() {
   const { id } = useParams();
@@ -80,7 +81,9 @@ export function PupilFormPage() {
   const existing = useQuery({ queryKey: ['pupil', id], queryFn: () => api.get<PupilDetail>(`/pupils/${id}`), enabled: editing });
   useEffect(() => {
     const p = existing.data;
-    if (p) setForm({ fullName: p.fullName, sex: p.sex, dateOfBirth: p.dateOfBirth ?? '', dateJoined: p.dateJoined, classId: String(p.classId), guardianName: p.guardianName ?? '', phonePrimary: p.phonePrimary ?? '', phoneAlt: p.phoneAlt ?? '', address: p.address ?? '', emergencyContact: p.emergencyContact ?? '', notes: p.notes ?? '' });
+    if (p) setForm({ fullName: p.fullName, sex: p.sex, dateOfBirth: p.dateOfBirth ?? '', dateJoined: p.dateJoined, classId: String(p.classId), guardianName: p.guardianName ?? '', guardianRelationship: p.guardianRelationship ?? '',
+      phonePrimary: p.phonePrimary ?? '', phoneAlt: p.phoneAlt ?? '', address: p.address ?? '',
+      emergencyName: p.emergencyName ?? '', emergencyRelationship: p.emergencyRelationship ?? '', emergencyPhone: p.emergencyPhone ?? '', notes: p.notes ?? '' });
   }, [existing.data]);
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
   const save = useMutation({
@@ -123,12 +126,22 @@ export function PupilFormPage() {
         <Card title="Parent or guardian">
           <div className="grid gap-4 sm:grid-cols-2">
             <TextInput label="Parent / guardian name" value={form.guardianName} onChange={(e) => set('guardianName')(e.target.value)} />
+            <Select label="Guardian's relationship to pupil" value={form.guardianRelationship} onChange={(e) => set('guardianRelationship')(e.target.value)} placeholder="Choose…" options={options('RELATIONSHIP')} />
             <TextInput label="Primary telephone" value={form.phonePrimary} onChange={(e) => set('phonePrimary')(e.target.value)} placeholder="07XX XXX XXX or +256…" inputMode="tel" />
             <TextInput label="Alternative telephone" value={form.phoneAlt} onChange={(e) => set('phoneAlt')(e.target.value)} inputMode="tel" />
-            <TextInput label="Emergency contact" value={form.emergencyContact} onChange={(e) => set('emergencyContact')(e.target.value)} placeholder="Name and phone" />
             <TextInput label="Physical address" value={form.address} onChange={(e) => set('address')(e.target.value)} className="sm:col-span-2" />
-            <div className="sm:col-span-2"><TextArea label="Notes" value={form.notes} onChange={set('notes')} /></div>
           </div>
+        </Card>
+        <Card title="Emergency contact">
+          <p className="mb-4 text-sm text-slate-600">Someone to call if the parent or guardian cannot be reached.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextInput label="Emergency contact name" value={form.emergencyName} onChange={(e) => set('emergencyName')(e.target.value)} />
+            <Select label="Emergency contact's relationship to pupil" value={form.emergencyRelationship} onChange={(e) => set('emergencyRelationship')(e.target.value)} placeholder="Choose…" options={options('RELATIONSHIP')} />
+            <TextInput label="Emergency contact telephone" value={form.emergencyPhone} onChange={(e) => set('emergencyPhone')(e.target.value)} placeholder="07XX XXX XXX or +256…" inputMode="tel" />
+          </div>
+        </Card>
+        <Card title="Notes">
+          <TextArea label="Notes" value={form.notes} onChange={set('notes')} />
         </Card>
         <ErrorBox error={save.error} />
         <div className="flex gap-2">
@@ -189,18 +202,35 @@ export function PupilDetailPage() {
       />
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title="Details" className="lg:col-span-2">
-          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-            {[
-              ['Sex', label('SEX', p.sex)], ['Date of birth', formatDate(p.dateOfBirth)], ['Date joined', formatDate(p.dateJoined)],
-              ['Parent / guardian', p.guardianName], ['Primary telephone', p.contactsHidden ? 'Hidden for your role' : p.phonePrimary],
-              ['Alternative telephone', p.contactsHidden ? 'Hidden for your role' : p.phoneAlt], ['Emergency contact', p.contactsHidden ? 'Hidden for your role' : p.emergencyContact],
-              ['Address', p.contactsHidden ? 'Hidden for your role' : p.address],
-              ...(p.dateLeft ? [['Date left', formatDate(p.dateLeft)], ['Reason for leaving', label('LEAVING_REASON', p.leavingReason)]] : []),
-              ['Notes', p.notes],
-            ].map(([k, v]) => (
-              <div key={k as string}><dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{k}</dt><dd className="mt-0.5">{v || <span className="text-slate-400">—</span>}</dd></div>
-            ))}
-          </dl>
+          {(() => {
+            const hidden = (v: string | null | undefined) => (p.contactsHidden ? 'Hidden for your role' : v);
+            const rel = (code: string | null | undefined) => (code ? label('RELATIONSHIP', code) : null);
+            const groups: Array<[string | null, Array<[string, string | null | undefined]>]> = [
+              [null, [
+                ['Sex', label('SEX', p.sex)], ['Date of birth', formatDate(p.dateOfBirth)], ['Date joined', formatDate(p.dateJoined)],
+                ...(p.dateLeft ? [['Date left', formatDate(p.dateLeft)], ['Reason for leaving', label('LEAVING_REASON', p.leavingReason)]] as Array<[string, string]> : []),
+              ]],
+              ['Parent or guardian', [
+                ['Name', p.guardianName], ['Relationship to pupil', rel(p.guardianRelationship)],
+                ['Primary telephone', hidden(p.phonePrimary)], ['Alternative telephone', hidden(p.phoneAlt)], ['Address', hidden(p.address)],
+              ]],
+              ['Emergency contact', [
+                ['Name', hidden(p.emergencyName)], ['Relationship to pupil', p.contactsHidden ? 'Hidden for your role' : rel(p.emergencyRelationship)],
+                ['Telephone', hidden(p.emergencyPhone)],
+              ]],
+              [null, [['Notes', p.notes]]],
+            ];
+            return groups.map(([heading, rows], gi) => (
+              <section key={gi} className={gi > 0 ? 'mt-5 border-t border-slate-100 pt-4' : ''}>
+                {heading && <h3 className="mb-3 text-sm font-semibold text-brand-900">{heading}</h3>}
+                <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                  {rows.map(([k, v]) => (
+                    <div key={k}><dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{k}</dt><dd className="mt-0.5">{v || <span className="text-slate-400">—</span>}</dd></div>
+                  ))}
+                </dl>
+              </section>
+            ));
+          })()}
         </Card>
         <Card title="Account (all years)">
           <dl className="space-y-2 text-sm">

@@ -103,10 +103,11 @@ describe('Pupils and history (FR-200, FR-300)', () => {
     expect((await bursar.get(`/api/pupils/${a.id}`)).body.pupilCode).toBe('STJA-2026-0001');
   });
   it('FR-206: guardian, both phones, address and emergency contact are stored', async () => {
-    const a = await createPupil(bursar, w, 'Contact Kid', w.classes.p1, { phoneAlt: '0701234567', address: 'Kasangati', emergencyContact: 'Aunt 0782000000' });
+    // Since 13/10/2026 the emergency contact has its own name, relationship and phone (Tina's request).
+    const a = await createPupil(bursar, w, 'Contact Kid', w.classes.p1, { phoneAlt: '0701234567', address: 'Kasangati', emergencyName: 'Aunt Grace', emergencyRelationship: 'AUNT_UNCLE', emergencyPhone: '0782000000' });
     const p = (await bursar.get(`/api/pupils/${a.id}`)).body;
     expect(p).toMatchObject({ guardianName: 'Parent of Contact Kid', phonePrimary: '0772123456', phoneAlt: '0701234567', address: 'Kasangati' });
-    expect(JSON.stringify(p)).toMatch(/Aunt 0782000000/);
+    expect(p).toMatchObject({ emergencyName: 'Aunt Grace', emergencyRelationship: 'AUNT_UNCLE', emergencyPhone: '0782000000' });
   });
   it('FR-207 / BR-16: Withdrawn, Completed, Alumni and Transferred pupils are not billed', async () => {
     await setFees(bursar, w.terms.t1, w.classes.p1, [{ feeItemId: w.items.SCHOOL_FEES, amount: '1000', mandatory: true }]);

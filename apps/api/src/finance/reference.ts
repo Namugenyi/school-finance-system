@@ -103,6 +103,18 @@ export const REFERENCE_LISTS: RefSeed[] = [
     ],
   },
   {
+    code: 'RELATIONSHIP', name: 'Relationship to Pupil', description: 'How a parent / guardian or emergency contact is related to the pupil', locked: false,
+    values: [
+      { code: 'MOTHER', label: 'Mother' },
+      { code: 'FATHER', label: 'Father' },
+      { code: 'GUARDIAN', label: 'Guardian' },
+      { code: 'GRANDPARENT', label: 'Grandparent' },
+      { code: 'SIBLING', label: 'Sibling' },
+      { code: 'AUNT_UNCLE', label: 'Aunt / Uncle' },
+      { code: 'OTHER', label: 'Other' },
+    ],
+  },
+  {
     code: 'EMPLOYMENT_TYPE', name: 'Employment Type', description: 'Staff employment types (FR-901)', locked: false,
     values: [
       { code: 'PERMANENT', label: 'Permanent' },

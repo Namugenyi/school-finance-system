@@ -16,18 +16,18 @@ datasource db {
 // ───────────────────────────── Security, users and audit (M18) ─────────────────────────────
 
 model User {
-  id                 Int       @id @default(autoincrement())
-  username           String    @unique
+  id                 Int        @id @default(autoincrement())
+  username           String     @unique
   fullName           String
   email              String?
   passwordHash       String
-  active             Boolean   @default(true)
-  mustChangePassword Boolean   @default(false)
-  failedLogins       Int       @default(0)
+  active             Boolean    @default(true)
+  mustChangePassword Boolean    @default(false)
+  failedLogins       Int        @default(0)
   lockedUntil        DateTime?
   lastLoginAt        DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
   roles              UserRole[]
   sessions           Session[]
 }
@@ -199,27 +199,32 @@ model SchoolClass {
 // ───────────────────────────── Pupils (M03) ─────────────────────────────
 
 model Pupil {
-  id               Int         @id @default(autoincrement())
-  pupilCode        String      @unique
-  fullName         String
-  sex              String
-  dateOfBirth      DateTime?   @db.Date
-  dateJoined       DateTime    @db.Date
-  classId          Int
-  schoolClass      SchoolClass @relation(fields: [classId], references: [id], onDelete: Restrict)
-  status           String      @default("ACTIVE")
-  guardianName     String?
-  phonePrimary     String?
-  phoneAlt         String?
-  address          String?
-  emergencyContact String?
-  notes            String?
-  dateLeft         DateTime?   @db.Date
-  leavingReason    String?
-  createdAt        DateTime    @default(now())
-  createdById      Int?
-  updatedAt        DateTime    @updatedAt
-  updatedById      Int?
+  id                    Int         @id @default(autoincrement())
+  pupilCode             String      @unique
+  fullName              String
+  sex                   String
+  dateOfBirth           DateTime?   @db.Date
+  dateJoined            DateTime    @db.Date
+  classId               Int
+  schoolClass           SchoolClass @relation(fields: [classId], references: [id], onDelete: Restrict)
+  status                String      @default("ACTIVE")
+  // Parent / guardian. Relationship codes come from the RELATIONSHIP reference list.
+  guardianName          String?
+  guardianRelationship  String?
+  phonePrimary          String?
+  phoneAlt              String?
+  address               String?
+  // Emergency contact, kept apart from the parent / guardian.
+  emergencyName         String?
+  emergencyRelationship String?
+  emergencyPhone        String?
+  notes                 String?
+  dateLeft              DateTime?   @db.Date
+  leavingReason         String?
+  createdAt             DateTime    @default(now())
+  createdById           Int?
+  updatedAt             DateTime    @updatedAt
+  updatedById           Int?
 
   history  PupilHistory[]
   charges  Charge[]
@@ -231,23 +236,23 @@ model Pupil {
 }
 
 model PupilHistory {
-  id             Int           @id @default(autoincrement())
-  pupilId        Int
-  pupil          Pupil         @relation(fields: [pupilId], references: [id], onDelete: Restrict)
+  id            Int           @id @default(autoincrement())
+  pupilId       Int
+  pupil         Pupil         @relation(fields: [pupilId], references: [id], onDelete: Restrict)
   // ENROLLED | PROMOTED | CLASS_CHANGE | STATUS_CHANGE
-  eventType      String
-  effectiveDate  DateTime      @db.Date
-  termId         Int?
-  term           AcademicTerm? @relation(fields: [termId], references: [id], onDelete: Restrict)
-  classId        Int
-  schoolClass    SchoolClass   @relation(fields: [classId], references: [id], onDelete: Restrict)
-  status         String
-  leavingReason  String?
-  note           String?
-  createdAt      DateTime      @default(now())
-  createdById    Int?
-  correctedAt    DateTime?
-  correctedById  Int?
+  eventType     String
+  effectiveDate DateTime      @db.Date
+  termId        Int?
+  term          AcademicTerm? @relation(fields: [termId], references: [id], onDelete: Restrict)
+  classId       Int
+  schoolClass   SchoolClass   @relation(fields: [classId], references: [id], onDelete: Restrict)
+  status        String
+  leavingReason String?
+  note          String?
+  createdAt     DateTime      @default(now())
+  createdById   Int?
+  correctedAt   DateTime?
+  correctedById Int?
 
   @@index([pupilId, effectiveDate])
 }
@@ -290,39 +295,39 @@ model FeeStructure {
 // ───────────────────────────── Charges and discounts (M05, M06) ─────────────────────────────
 
 model Charge {
-  id                   Int          @id @default(autoincrement())
-  chargeNo             String       @unique
-  pupilId              Int
-  pupil                Pupil        @relation(fields: [pupilId], references: [id], onDelete: Restrict)
-  termId               Int
-  term                 AcademicTerm @relation(fields: [termId], references: [id], onDelete: Restrict)
+  id                      Int                @id @default(autoincrement())
+  chargeNo                String             @unique
+  pupilId                 Int
+  pupil                   Pupil              @relation(fields: [pupilId], references: [id], onDelete: Restrict)
+  termId                  Int
+  term                    AcademicTerm       @relation(fields: [termId], references: [id], onDelete: Restrict)
   // Class at billing time (A-18).
-  classId              Int
-  schoolClass          SchoolClass  @relation(fields: [classId], references: [id], onDelete: Restrict)
-  feeItemId            Int
-  feeItem              FeeItem      @relation(fields: [feeItemId], references: [id], onDelete: Restrict)
-  amountCharged        Decimal      @db.Decimal(14, 2)
-  dueDate              DateTime?    @db.Date
-  billingBatchId       Int?
-  billingBatch         BillingBatch? @relation(fields: [billingBatchId], references: [id], onDelete: Restrict)
+  classId                 Int
+  schoolClass             SchoolClass        @relation(fields: [classId], references: [id], onDelete: Restrict)
+  feeItemId               Int
+  feeItem                 FeeItem            @relation(fields: [feeItemId], references: [id], onDelete: Restrict)
+  amountCharged           Decimal            @db.Decimal(14, 2)
+  dueDate                 DateTime?          @db.Date
+  billingBatchId          Int?
+  billingBatch            BillingBatch?      @relation(fields: [billingBatchId], references: [id], onDelete: Restrict)
   // Arrears B/F: the charge whose unpaid balance this one carries (D-01, WR-18).
-  sourceChargeId       Int?         @unique
-  sourceCharge         Charge?      @relation("CarryForward", fields: [sourceChargeId], references: [id], onDelete: Restrict)
-  carriedTo            Charge?      @relation("CarryForward")
+  sourceChargeId          Int?               @unique
+  sourceCharge            Charge?            @relation("CarryForward", fields: [sourceChargeId], references: [id], onDelete: Restrict)
+  carriedTo               Charge?            @relation("CarryForward")
   // Amount transferred out to a later term; closes this charge's balance (D-01).
-  carriedForwardAmount Decimal      @default(0) @db.Decimal(14, 2)
-  carryForwardBatchId  Int?
-  carryForwardBatch    CarryForwardBatch? @relation(fields: [carryForwardBatchId], references: [id], onDelete: Restrict)
+  carriedForwardAmount    Decimal            @default(0) @db.Decimal(14, 2)
+  carryForwardBatchId     Int?
+  carryForwardBatch       CarryForwardBatch? @relation(fields: [carryForwardBatchId], references: [id], onDelete: Restrict)
   frequencyOverrideReason String?
-  postClose            Boolean      @default(false)
-  notes                String?
-  voidedAt             DateTime?
-  voidedById           Int?
-  voidReason           String?
-  createdAt            DateTime     @default(now())
-  createdById          Int?
-  updatedAt            DateTime     @updatedAt
-  updatedById          Int?
+  postClose               Boolean            @default(false)
+  notes                   String?
+  voidedAt                DateTime?
+  voidedById              Int?
+  voidReason              String?
+  createdAt               DateTime           @default(now())
+  createdById             Int?
+  updatedAt               DateTime           @updatedAt
+  updatedById             Int?
 
   discounts    ChargeDiscount[]
   paymentLines PaymentLine[]
@@ -369,22 +374,22 @@ model BillingBatch {
 // ───────────────────────────── Payments and receipts (M07, M08) ─────────────────────────────
 
 model Receipt {
-  id             Int           @id @default(autoincrement())
-  receiptNo      String        @unique
-  idempotencyKey String?       @unique
+  id             Int       @id @default(autoincrement())
+  receiptNo      String    @unique
+  idempotencyKey String?   @unique
   pupilId        Int
-  pupil          Pupil         @relation(fields: [pupilId], references: [id], onDelete: Restrict)
-  paymentDate    DateTime      @db.Date
+  pupil          Pupil     @relation(fields: [pupilId], references: [id], onDelete: Restrict)
+  paymentDate    DateTime  @db.Date
   method         String
   reference      String?
   notes          String?
-  total          Decimal       @db.Decimal(14, 2)
+  total          Decimal   @db.Decimal(14, 2)
   receivedById   Int
   receivedByName String
-  postClose      Boolean       @default(false)
+  postClose      Boolean   @default(false)
   // Set when an approved reversal cancels this receipt (WR-09). Posted receipts are never edited.
   reversedAt     DateTime?
-  createdAt      DateTime      @default(now())
+  createdAt      DateTime  @default(now())
 
   lines    PaymentLine[]
   reversal PaymentReversal?
@@ -421,27 +426,27 @@ model PaymentReversal {
 // ───────────────────────────── Expenses and owner funds (M11, M12) ─────────────────────────────
 
 model Expense {
-  id             Int          @id @default(autoincrement())
-  expenseNo      String       @unique
-  expenseDate    DateTime     @db.Date
+  id             Int                @id @default(autoincrement())
+  expenseNo      String             @unique
+  expenseDate    DateTime           @db.Date
   termId         Int
-  term           AcademicTerm @relation(fields: [termId], references: [id], onDelete: Restrict)
+  term           AcademicTerm       @relation(fields: [termId], references: [id], onDelete: Restrict)
   category       String
   description    String
-  amount         Decimal      @db.Decimal(14, 2)
+  amount         Decimal            @db.Decimal(14, 2)
   supplier       String?
   method         String
   invoiceRef     String?
   fundingSource  String
   // PENDING | APPROVED | REJECTED (D-05)
-  status         String       @default("PENDING")
+  status         String             @default("PENDING")
   enteredById    Int
-  enteredAt      DateTime     @default(now())
+  enteredAt      DateTime           @default(now())
   approvedById   Int?
   approvedByName String?
   decidedAt      DateTime?
   decisionNote   String?
-  postClose      Boolean      @default(false)
+  postClose      Boolean            @default(false)
   payrollRun     PayrollRun?
   contribution   OwnerContribution?
 
@@ -473,33 +478,33 @@ model OwnerContribution {
 // ───────────────────────────── Payroll (M13) ─────────────────────────────
 
 model Staff {
-  id             Int       @id @default(autoincrement())
-  staffCode      String    @unique
+  id             Int            @id @default(autoincrement())
+  staffCode      String         @unique
   fullName       String
   jobRole        String
   department     String?
   employmentType String
-  basicSalary    Decimal   @db.Decimal(14, 2)
-  startDate      DateTime  @db.Date
-  status         String    @default("ACTIVE") // ACTIVE | INACTIVE
+  basicSalary    Decimal        @db.Decimal(14, 2)
+  startDate      DateTime       @db.Date
+  status         String         @default("ACTIVE") // ACTIVE | INACTIVE
   phone          String?
   nssfNo         String?
   tin            String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   entries        PayrollEntry[]
 }
 
 model StatutoryRateSet {
-  id               Int       @id @default(autoincrement())
-  effectiveFrom    DateTime  @unique @db.Date
-  nssfEmployeeRate Decimal   @db.Decimal(6, 4)
-  nssfEmployerRate Decimal   @db.Decimal(6, 4)
+  id               Int          @id @default(autoincrement())
+  effectiveFrom    DateTime     @unique @db.Date
+  nssfEmployeeRate Decimal      @db.Decimal(6, 4)
+  nssfEmployerRate Decimal      @db.Decimal(6, 4)
   notes            String?
   // Signed off by a payroll professional (G-03).
-  validated        Boolean   @default(false)
+  validated        Boolean      @default(false)
   validatedBy      String?
-  createdAt        DateTime  @default(now())
+  createdAt        DateTime     @default(now())
   bands            PayeBand[]
   runs             PayrollRun[]
 }
@@ -618,7 +623,7 @@ model TermSnapshot {
 /// One row per charge with its computed figures (BR-01 to BR-06, D-01, D-05).
 /// Defined in SQL in the migrations so every screen and report uses the same arithmetic.
 view ChargeBalance {
-  chargeId        Int      @unique
+  chargeId        Int     @unique
   pupilId         Int
   termId          Int
   academicYearId  Int
@@ -627,12 +632,12 @@ view ChargeBalance {
   feeItemId       Int
   isArrears       Boolean
   voided          Boolean
-  amountCharged   Decimal  @db.Decimal(14, 2)
-  discount        Decimal  @db.Decimal(14, 2)
-  pendingDiscount Decimal  @db.Decimal(14, 2)
-  netDue          Decimal  @db.Decimal(14, 2)
-  totalPaid       Decimal  @db.Decimal(14, 2)
-  carriedForward  Decimal  @db.Decimal(14, 2)
-  balance         Decimal  @db.Decimal(14, 2)
+  amountCharged   Decimal @db.Decimal(14, 2)
+  discount        Decimal @db.Decimal(14, 2)
+  pendingDiscount Decimal @db.Decimal(14, 2)
+  netDue          Decimal @db.Decimal(14, 2)
+  totalPaid       Decimal @db.Decimal(14, 2)
+  carriedForward  Decimal @db.Decimal(14, 2)
+  balance         Decimal @db.Decimal(14, 2)
   status          String
 }

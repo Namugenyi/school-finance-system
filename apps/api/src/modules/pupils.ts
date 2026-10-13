@@ -32,12 +32,21 @@ const pupilFields = {
   sex: z.string().min(1, 'Sex is required'),
   dateOfBirth: z.string().nullable().optional(),
   guardianName: optionalText(120),
+  guardianRelationship: optionalText(40),
   phonePrimary: phone,
   phoneAlt: phone,
   address: optionalText(300),
-  emergencyContact: optionalText(200),
+  emergencyName: optionalText(120),
+  emergencyRelationship: optionalText(40),
+  emergencyPhone: phone,
   notes: optionalText(1000),
 };
+
+/** Relationship codes must come from the RELATIONSHIP reference list (BR-24). */
+async function assertRelationships(db: Db, body: { guardianRelationship?: string | null; emergencyRelationship?: string | null }) {
+  if (body.guardianRelationship) await assertRefCode(db, 'RELATIONSHIP', body.guardianRelationship, 'Relationship of the parent / guardian');
+  if (body.emergencyRelationship) await assertRefCode(db, 'RELATIONSHIP', body.emergencyRelationship, 'Relationship of the emergency contact');
+}
 
 /** Term whose dates contain the given day, if any. */
 export async function termForDate(db: Db, date: Date) {
@@ -61,8 +70,11 @@ function serializePupil(p: Prisma.PupilGetPayload<{ include: { schoolClass: { in
     leavingReason: p.leavingReason,
     notes: p.notes,
     ...(showContacts
-      ? { guardianName: p.guardianName, phonePrimary: p.phonePrimary, phoneAlt: p.phoneAlt, address: p.address, emergencyContact: p.emergencyContact }
-      : { guardianName: p.guardianName, contactsHidden: true }),
+      ? {
+          guardianName: p.guardianName, guardianRelationship: p.guardianRelationship, phonePrimary: p.phonePrimary, phoneAlt: p.phoneAlt, address: p.address,
+          emergencyName: p.emergencyName, emergencyRelationship: p.emergencyRelationship, emergencyPhone: p.emergencyPhone,
+        }
+      : { guardianName: p.guardianName, guardianRelationship: p.guardianRelationship, contactsHidden: true }),
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   };
@@ -142,6 +154,7 @@ router.post(
     const body = parse(z.object({ ...pupilFields, classId: z.number().int(), dateJoined: z.string() }), req.body);
     const user = currentUser(req);
     await assertRefCode(prisma, 'SEX', body.sex, 'Sex');
+    await assertRelationships(prisma, body);
     const cls = await prisma.schoolClass.findUnique({ where: { id: body.classId } });
     if (!cls || !cls.active) throw badRequest('Choose an active class');
     const dateJoined = parseDate(body.dateJoined, 'Date joined');
@@ -163,10 +176,13 @@ router.post(
           classId: cls.id,
           status: 'ACTIVE',
           guardianName: body.guardianName ?? null,
+          guardianRelationship: body.guardianRelationship ?? null,
           phonePrimary: body.phonePrimary ?? null,
           phoneAlt: body.phoneAlt ?? null,
           address: body.address ?? null,
-          emergencyContact: body.emergencyContact ?? null,
+          emergencyName: body.emergencyName ?? null,
+          emergencyRelationship: body.emergencyRelationship ?? null,
+          emergencyPhone: body.emergencyPhone ?? null,
           notes: body.notes ?? null,
           createdById: user.id,
           updatedById: user.id,
@@ -199,6 +215,7 @@ router.patch(
     const before = await prisma.pupil.findUnique({ where: { id } });
     if (!before) throw notFound('Pupil');
     if (body.sex) await assertRefCode(prisma, 'SEX', body.sex, 'Sex');
+    await assertRelationships(prisma, body);
     const dateJoined = body.dateJoined ? parseDate(body.dateJoined, 'Date joined') : undefined;
     const dateOfBirth = body.dateOfBirth === undefined ? undefined : body.dateOfBirth ? parseDate(body.dateOfBirth, 'Date of birth') : null;
     const after = await prisma.pupil.update({

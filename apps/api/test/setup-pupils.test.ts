@@ -107,6 +107,37 @@ describe('pupil register (FR-201 to FR-207)', () => {
   });
 });
 
+describe('parent / guardian and emergency contact', () => {
+  it('keeps the two apart, each with a relationship from the Setup list', async () => {
+    const lists = (await bursar.get('/api/setup/lookups')).body.lists;
+    expect(lists.RELATIONSHIP.map((v: { label: string }) => v.label)).toEqual(['Mother', 'Father', 'Guardian', 'Grandparent', 'Sibling', 'Aunt / Uncle', 'Other']);
+    const p = await createPupil(bursar, w, 'Two Contacts', w.classes.p1, {
+      guardianRelationship: 'MOTHER', emergencyName: 'Sarah Nakato', emergencyRelationship: 'AUNT_UNCLE', emergencyPhone: '0782000000',
+    });
+    const got = (await bursar.get(`/api/pupils/${p.id}`)).body;
+    expect(got).toMatchObject({ guardianName: 'Parent of Two Contacts', guardianRelationship: 'MOTHER', phonePrimary: '0772123456', emergencyName: 'Sarah Nakato', emergencyRelationship: 'AUNT_UNCLE', emergencyPhone: '0782000000' });
+    const edited = await bursar.patch(`/api/pupils/${p.id}`, { emergencyRelationship: 'GRANDPARENT' });
+    expect(edited.status).toBe(200);
+    expect(edited.body.emergencyRelationship).toBe('GRANDPARENT');
+  });
+
+  it('rejects a relationship that is not in the list and a bad emergency phone (BR-24, A-12)', async () => {
+    const base = { fullName: 'Bad Relation', sex: 'FEMALE', dateJoined: '2026-01-20', classId: w.classes.p1 };
+    expect((await bursar.post('/api/pupils', { ...base, guardianRelationship: 'NEIGHBOUR' })).status).toBe(400);
+    expect((await bursar.post('/api/pupils', { ...base, emergencyRelationship: 'NEIGHBOUR' })).status).toBe(400);
+    expect((await bursar.post('/api/pupils', { ...base, emergencyPhone: '12345' })).status).toBe(400);
+  });
+
+  it('hides emergency contact details from roles without contact access', async () => {
+    const p = await createPupil(bursar, w, 'Hidden Contact', w.classes.p1, { emergencyName: 'Secret Aunt', emergencyPhone: '0782000001' });
+    const auditor = await login('auditor');
+    const got = (await auditor.get(`/api/pupils/${p.id}`)).body;
+    expect(got.contactsHidden).toBe(true);
+    expect(got.emergencyName).toBeUndefined();
+    expect(got.emergencyPhone).toBeUndefined();
+  });
+});
+
 describe('pupil history (FR-301 to FR-303)', () => {
   it('keeps every placement when a pupil is promoted', async () => {
     const p = await createPupil(bursar, w, 'History Pupil');
