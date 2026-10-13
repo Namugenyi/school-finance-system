@@ -80,7 +80,7 @@ export const DEFAULT_ROLES: Array<{ code: string; name: string; description: str
     description: 'Reviews performance and approves discounts, reversals, expenses, payroll and term close.',
     permissions: [
       ...VIEW_FINANCE, 'pupils.contacts', 'discounts.approve', 'payments.reverse.approve',
-      'expenses.approve', 'payroll.view', 'payroll.approve', 'termclose.approve', 'term.postClosed',
+      'expenses.approve', 'payroll.view', 'payroll.approve', 'payroll.rates', 'termclose.approve', 'term.postClosed',
       'approvals.view', 'audit.view',
     ],
   },

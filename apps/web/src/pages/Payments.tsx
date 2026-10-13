@@ -281,15 +281,17 @@ export function ReceiptPage() {
           <p><span className="text-slate-500">Pupil’s total outstanding:</span> <strong>UGX {formatMoney(r.pupilOutstanding)}</strong></p>
           {r.notes && <p className="col-span-2"><span className="text-slate-500">Notes:</span> {r.notes}</p>}
         </section>
-        <footer className="mt-10 flex items-end justify-between text-sm">
-          <div className="w-56 border-t border-slate-400 pt-1 text-center text-slate-600">Signature and stamp</div>
-          <p className="text-xs text-slate-500">Printed {formatDateTime(new Date().toISOString())}</p>
+        <footer className="mt-12 grid grid-cols-2 gap-10 text-sm">
+          <div className="border-t border-slate-400 pt-1 text-center text-slate-600">Received by (signature and stamp)</div>
+          <div className="border-t border-slate-400 pt-1 text-center text-slate-600">Parent / guardian signature</div>
         </footer>
+        <p className="mt-4 text-right text-xs text-slate-500">Printed {formatDateTime(new Date().toISOString())}</p>
         {r.school.footer && <p className="mt-4 text-center text-xs italic text-slate-600">{r.school.footer}</p>}
       </article>
       <Modal open={reversing} title="Request a reversal" onClose={() => setReversing(false)}
         footer={<><Button variant="secondary" onClick={() => setReversing(false)}>Cancel</Button><Button variant="danger" busy={reverse.isPending} disabled={reason.trim().length < 5} onClick={() => reverse.mutate()}>Send for approval</Button></>}>
         <p className="text-sm text-slate-600">The receipt is never deleted. Once someone else approves, it is marked reversed and stops counting, and the balances go back up.</p>
+        <p className="text-sm text-slate-600">If a fee on this receipt has since been carried forward to a later term, the reversed amount is added to that pupil’s Arrears B/F charge, so it can be collected there.</p>
         <TextArea label="Reason" value={reason} onChange={setReason} required rows={3} />
         <ErrorBox error={reverse.error} />
       </Modal>

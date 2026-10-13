@@ -265,7 +265,7 @@ export function PayrollRunPage() {
       <Card padded={false}>
         <TableWrap>
           <table className="table">
-            <thead><tr><th>Staff</th><th>Role</th><th className="num">Basic</th><th className="num">NSSF (employee)</th><th className="num">PAYE</th><th className="num">Other deductions</th><th className="num">Net pay</th><th className="num">NSSF (employer)</th><th className="no-print" /></tr></thead>
+            <thead><tr><th>Staff</th><th>Role</th><th className="num">Basic</th><th className="num">NSSF (employee)</th><th className="num">PAYE</th><th className="num">Other deductions</th><th className="num">Net pay</th><th className="num">NSSF (employer)</th><th className="w-36">Signature</th><th className="no-print" /></tr></thead>
             <tbody>
               {r.entries.map((e) => (
                 <tr key={e.id}>
@@ -277,6 +277,7 @@ export function PayrollRunPage() {
                   <td className="num"><Money value={e.otherDeductions} />{e.otherNote && <span className="block text-xs text-slate-500">{e.otherNote}</span>}</td>
                   <td className="num computed font-semibold"><Money value={e.net} /></td>
                   <td className="num computed"><Money value={e.nssfEmployer} /></td>
+                  <td className="w-36 border-b border-slate-400" aria-label={`Signature for ${e.fullName}`} />
                   <td className="no-print whitespace-nowrap">
                     <Link to={`/payroll/runs/${r.id}/payslips/${e.staffId}`} className="link text-xs">Payslip</Link>
                     {editable && <button type="button" className="link ml-3 text-xs" onClick={() => { setOf({ amount: e.otherDeductions, note: e.otherNote ?? '' }); setOther(e); }}>Deductions</button>}
@@ -285,7 +286,7 @@ export function PayrollRunPage() {
               ))}
             </tbody>
             <tfoot className="font-semibold">
-              <tr><td colSpan={2} className="px-3 py-2">Totals</td><td className="num px-3"><Money value={r.totals.basic} /></td><td className="num px-3"><Money value={r.totals.nssfEmployee} /></td><td className="num px-3"><Money value={r.totals.paye} /></td><td className="num px-3"><Money value={r.totals.other} /></td><td className="num px-3"><Money value={r.totals.net} /></td><td className="num px-3"><Money value={r.totals.nssfEmployer} /></td><td /></tr>
+              <tr><td colSpan={2} className="px-3 py-2">Totals</td><td className="num px-3"><Money value={r.totals.basic} /></td><td className="num px-3"><Money value={r.totals.nssfEmployee} /></td><td className="num px-3"><Money value={r.totals.paye} /></td><td className="num px-3"><Money value={r.totals.other} /></td><td className="num px-3"><Money value={r.totals.net} /></td><td className="num px-3"><Money value={r.totals.nssfEmployer} /></td><td /><td className="no-print" /></tr>
             </tfoot>
           </table>
         </TableWrap>

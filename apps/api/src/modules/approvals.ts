@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db';
 import { handle } from '../lib/http';
-import { isoDate } from '../lib/dates';
+import { displayDate } from '../lib/dates';
 import { money } from '../lib/money';
 import { currentUser, requirePermission } from '../auth/session';
 import { termLabel } from './setup';
@@ -33,7 +33,7 @@ router.get(
     });
     return [
       ...discounts.map((d) => item('DISCOUNT', d.id, `Discount for ${d.charge.pupil.fullName}`, `${d.charge.feeItem.name}, ${termLabel(d.charge.term)}: ${d.reason}`, money(d.amount), d.requestedById, d.requestedAt, 'discounts.approve', `/charges/${d.chargeId}`)),
-      ...expenses.map((e) => item('EXPENSE', e.id, `Expense ${e.expenseNo}`, `${e.description} (${termLabel(e.term)}, ${isoDate(e.expenseDate)})`, money(e.amount), e.enteredById, e.enteredAt, 'expenses.approve', `/expenses/${e.id}`)),
+      ...expenses.map((e) => item('EXPENSE', e.id, `Expense ${e.expenseNo}`, `${e.description} (${termLabel(e.term)}, ${displayDate(e.expenseDate)})`, money(e.amount), e.enteredById, e.enteredAt, 'expenses.approve', `/expenses/${e.id}`)),
       ...reversals.map((r) => item('REVERSAL', r.id, `Reverse receipt ${r.receipt.receiptNo}`, `${r.receipt.pupil.fullName}: ${r.reason}`, money(r.receipt.total), r.requestedById, r.requestedAt, 'payments.reverse.approve', `/receipts/${r.receipt.receiptNo}`)),
       ...runs.map((r) => item('PAYROLL', r.id, `Payroll ${monthLabel(r.year, r.month)}`, 'Post salaries (basic pay plus employer NSSF) to expenses', money(payrollExpenseAmount(r)), r.preparedById, r.submittedAt ?? r.preparedAt, 'payroll.approve', `/payroll/runs/${r.id}`)),
       ...snapshots.map((s) => item('TERM_CLOSE', s.id, `Close ${termLabel(s.term)}`, `Snapshot version ${s.version}`, null, s.recordedById, s.recordedAt, 'termclose.approve', `/term-close?termId=${s.termId}`)),

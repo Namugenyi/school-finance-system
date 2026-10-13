@@ -14,7 +14,7 @@ How the build implements STJA-FRS-v12 and the seven decisions Tina approved on 1
 
 | Decision | How it is built |
 |---|---|
-| D-01 Carry-forward counts a debt once | Carrying forward marks the old charge as carried (it shows "Carried forward" with nothing left to pay) and raises an Arrears B/F charge in the new term that names where the debt came from. Arrears B/F is left out of "billed". |
+| D-01 Carry-forward counts a debt once | Carrying forward marks the old charge as carried (it shows "Carried forward" with nothing left to pay) and raises an Arrears B/F charge in the new term that names where the debt came from. Arrears B/F is left out of "billed". If a payment on the old charge is reversed after the carry-forward (for example a bounced cheque), the reversed amount moves along to the latest Arrears B/F charge, which is where it gets collected; the old charge stays closed and an audit entry records the move. |
 | D-02 Billed is net of discounts | Discounts are requests until approved; only approved ones reduce billed. |
 | D-03 Three funding groups | Expenses are school-funded, owner-funded (contribution or loan) or other-funded (donation, other). Owner money is never counted as income. |
 | D-04 Once-only and yearly fees | Billing skips a once-only fee already charged and a yearly fee already charged that year, unless the bursar gives a reason, which is stored on the charge. |
@@ -34,7 +34,7 @@ Other choices made where the FRS left a gap:
 
 These need the school, not more code:
 
-1. **G-03 Payroll rates.** The PAYE bands and NSSF rates loaded at start are the FRS values. We believe, but have not verified, that current law adds a 10% band above UGX 10,000,000 a month and calculates NSSF on gross pay. An accountant should confirm the current rules; enter them under Payroll > Rates, mark them as checked, then switch payroll posting on in Setup.
+1. **G-03 Payroll rates.** The PAYE bands and NSSF rates loaded at start are the FRS values. We believe, but have not verified, that current law adds a 10% band above UGX 10,000,000 a month and calculates NSSF on gross pay. An accountant should confirm the current rules; enter them under Payroll > Rates, mark them as checked, then switch payroll posting on in Setup. The Head Teacher role can change rates; on a database seeded before 13/10/2026, grant "Change PAYE and NSSF rates" under Admin > Roles first.
 2. **G-01 Existing records.** If there is a live workbook with pupils and unpaid balances, opening balances need importing. That is a separate task, with a reconciliation report.
 3. **G-02 Real setup data.** Class names, fee amounts and the staff list are entered in Setup, Fee structure and Payroll.
 4. **G-04 Hosting.** Where it runs, the domain, and HTTPS. See [deployment.md](deployment.md).
@@ -44,4 +44,5 @@ These need the school, not more code:
 ## Tests
 
 - `apps/api/test`: 87 tests against a real Postgres, covering the money rules, permissions, approvals by a second person, duplicate protection, carry-forward, payroll, term close, reports reconciling to each other, and security (CSRF, lockout, session expiry, CSV formula injection).
+- `apps/api/test/frs-conformance.test.ts`: 53 tests written from the FRS text, independent of the build's own tests, including a 500-pupil capacity check.
 - `apps/web/e2e`: 12 browser journeys through the real screens, from registering a pupil to carrying arrears into the next year.

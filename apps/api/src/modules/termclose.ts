@@ -6,7 +6,7 @@ import { handle, idParam, parse } from '../lib/http';
 import { badRequest, notFound } from '../lib/errors';
 import { audit } from '../lib/audit';
 import { isoDate } from '../lib/dates';
-import { dec, money } from '../lib/money';
+import { dec, money, ugx } from '../lib/money';
 import { currentUser, requirePermission } from '../auth/session';
 import { assertDifferentApprover } from '../finance/policies';
 import { computeFigures, serializeFigures, type Figures } from '../finance/figures';
@@ -49,8 +49,8 @@ export async function readiness(db: Db, termId: number) {
   if (figures.outstanding.gt(0)) {
     warnings.push(
       laterTerm
-        ? `${money(figures.outstanding)} is still owed. After closing, carry it forward to ${termLabel(laterTerm)} (SOP-4.7).`
-        : `${money(figures.outstanding)} is still owed. Create the next term so it can be carried forward.`,
+        ? `${ugx(figures.outstanding)} is still owed. After closing, carry it forward to ${termLabel(laterTerm)} (SOP-4.7).`
+        : `${ugx(figures.outstanding)} is still owed. Create the next term so it can be carried forward.`,
     );
   }
   return {

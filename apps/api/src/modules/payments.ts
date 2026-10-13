@@ -7,7 +7,7 @@ import { AppError, badRequest, notFound } from '../lib/errors';
 import { audit } from '../lib/audit';
 import { displayDate, isoDate, parseDate, todayKampala } from '../lib/dates';
 import { nextReceiptNo } from '../lib/ids';
-import { dec, money, sum } from '../lib/money';
+import { dec, money, sum, ugx } from '../lib/money';
 import { sendCsv, wantsCsv } from '../lib/csv';
 import { currentUser, hasPermission, requirePermission } from '../auth/session';
 import { assertDifferentApprover, receiptYear } from '../finance/policies';
@@ -85,7 +85,7 @@ router.post(
           if (dec(line.amount).gt(b.balance)) {
             // A-10: overpayment allowed with an explicit acknowledgement; it leaves a credit.
             if (!body.acknowledgeOverpayment) {
-              throw new AppError(400, 'OVERPAYMENT', `The amount for ${c.feeItem.name} is more than its balance of ${money(b.balance)}. Confirm to record an overpayment as a credit.`);
+              throw new AppError(400, 'OVERPAYMENT', `The amount for ${c.feeItem.name} is more than its balance of ${ugx(b.balance)}. Confirm to record an overpayment as a credit.`);
             }
             warnings.push(`${c.feeItem.name} is overpaid and now shows a credit.`);
           }
@@ -282,6 +282,11 @@ router.post(
     assertDifferentApprover(reversal.requestedById, user.id);
     if (!body.approve && !body.note) throw badRequest('Give a reason for rejecting');
     for (const l of reversal.receipt.lines) await checkTermOpen(prisma, user, l.charge.termId);
+    // D-01: money paid on a charge that has since been carried forward cannot go back onto that
+    // charge (it no longer takes payments). The reinstated amount follows the carry-forward chain
+    // to the latest Arrears B/F charge, where it can be receipted again.
+    const routes = body.approve ? await carryForwardRoutes(reversal.receipt.lines) : [];
+    for (const r of routes) await checkTermOpen(prisma, user, r.chain[r.chain.length - 1].termId);
     await prisma.$transaction(async (tx) => {
       const updated = await tx.paymentReversal.updateMany({
         where: { id, status: 'PENDING' },
@@ -289,6 +294,17 @@ router.post(
       });
       if (updated.count !== 1) throw badRequest('This reversal has already been decided');
       if (body.approve) await tx.receipt.update({ where: { id: reversal.receiptId }, data: { reversedAt: new Date() } });
+      for (const r of routes) {
+        const amount = r.amount;
+        for (let i = 0; i < r.chain.length - 1; i++) {
+          await tx.charge.update({ where: { id: r.chain[i].id }, data: { carriedForwardAmount: { increment: amount }, updatedById: user.id } });
+        }
+        for (let i = 1; i < r.chain.length; i++) {
+          await tx.charge.update({ where: { id: r.chain[i].id }, data: { amountCharged: { increment: amount }, updatedById: user.id } });
+        }
+        const last = r.chain[r.chain.length - 1];
+        await audit(tx, user, 'payment.reversal_route_arrears', 'Charge', last.id, { after: { receiptId: reversal.receiptId, fromChargeId: r.chain[0].id, amount: amount.toFixed(2) }, reason: 'Reversed payment moved to Arrears B/F (D-01)' });
+      }
       await audit(tx, user, body.approve ? 'payment.reversal_approve' : 'payment.reversal_reject', 'Receipt', reversal.receiptId, { reason: body.note ?? reversal.reason });
     });
     return { ok: true };
@@ -310,3 +326,23 @@ router.get(
     }));
   }),
 );
+
+type ChainLink = { id: number; termId: number };
+
+/** For each reversed line whose charge was carried forward, the chain from that charge to its latest Arrears B/F. */
+async function carryForwardRoutes(lines: { amount: Prisma.Decimal; charge: { id: number; termId: number; carriedForwardAmount: Prisma.Decimal } }[]) {
+  const routes: { amount: Prisma.Decimal; chain: ChainLink[] }[] = [];
+  for (const l of lines) {
+    if (!dec(l.charge.carriedForwardAmount).gt(0)) continue;
+    const chain: ChainLink[] = [{ id: l.charge.id, termId: l.charge.termId }];
+    let next = await prisma.charge.findUnique({ where: { sourceChargeId: l.charge.id } });
+    while (next) {
+      chain.push({ id: next.id, termId: next.termId });
+      if (!dec(next.carriedForwardAmount).gt(0)) break;
+      next = await prisma.charge.findUnique({ where: { sourceChargeId: next.id } });
+    }
+    if (chain.length < 2) throw badRequest('This receipt pays a carried-forward charge whose Arrears B/F charge cannot be found');
+    routes.push({ amount: dec(l.amount), chain });
+  }
+  return routes;
+}

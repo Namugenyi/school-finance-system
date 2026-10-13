@@ -16,7 +16,7 @@
   .label { @apply mb-1 block text-sm font-medium text-slate-700; }
   .card { @apply rounded-lg border border-slate-200 bg-white shadow-sm; }
   .table { @apply min-w-full divide-y divide-slate-200 text-sm; }
-  .table thead th { @apply whitespace-nowrap bg-slate-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600; }
+  .table thead th { @apply sticky top-0 z-10 whitespace-nowrap bg-slate-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600; }
   .table tbody td { @apply whitespace-nowrap px-3 py-2 align-top; }
   .table tbody tr { @apply hover:bg-slate-50; }
   .num { @apply text-right tabular-nums; }

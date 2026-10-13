@@ -45,20 +45,21 @@ export function ArrearsPage() {
         {q.isLoading ? <Loading /> : q.data?.rows.length === 0 ? <div className="p-4"><Empty title="Nobody owes anything for this selection" /></div> : (
           <TableWrap>
             <table className="table">
-              <thead><tr><th>Pupil ID</th><th>Pupil</th><th>Class</th><th>Parent / guardian</th>{!q.data?.contactsHidden && <th>Phone</th>}<th className="num">Billed</th><th className="num">Paid</th><th className="num">Outstanding</th><th className="num">Unpaid items</th><th>Status</th></tr></thead>
+              <thead><tr><th>Pupil ID</th><th>Pupil</th><th>Class</th><th>Status</th><th>Parent / guardian</th>{!q.data?.contactsHidden && <th>Phone</th>}<th className="num">Billed</th><th className="num">Paid</th><th className="num">Outstanding</th><th className="num">Unpaid items</th></tr></thead>
               <tbody>
                 {q.data?.rows.map((r) => (
-                  <tr key={r.pupilId}>
+                  <tr key={r.pupilId} className={Number(r.outstanding) > 0 ? 'bg-red-50/40' : 'bg-emerald-50/40'}>
                     <td className="font-mono text-xs">{r.pupilCode}</td>
                     <td><Link to={`/statements/${r.pupilId}`} className="link">{r.pupilName}</Link>{r.pupilStatus !== 'ACTIVE' && <span className="ml-1"><StatusBadge status={r.pupilStatus} /></span>}</td>
                     <td>{r.className}</td>
+                    <td><StatusBadge status={r.status} label={r.statusLabel} /></td>
                     <td>{r.guardianName}</td>
                     {!q.data?.contactsHidden && <td className="text-xs">{r.phonePrimary}{r.phoneAlt && <span className="block">{r.phoneAlt}</span>}</td>}
                     <td className="num"><Money value={r.totalBilled} /></td>
                     <td className="num"><Money value={r.totalPaid} /></td>
-                    <td className="num font-semibold"><Money value={r.outstanding} credit /></td>
+                    {/* FR-1304: owing in red, settled in green. */}
+                    <td className={`num font-semibold ${Number(r.outstanding) > 0 ? 'text-red-700' : 'text-emerald-700'}`}><Money value={r.outstanding} credit /></td>
                     <td className="num">{r.unpaidItems}</td>
-                    <td><StatusBadge status={r.status} label={r.statusLabel} /></td>
                   </tr>
                 ))}
               </tbody>

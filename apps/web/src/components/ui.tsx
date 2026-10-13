@@ -300,7 +300,8 @@ export function Tabs({ tabs, active, onChange }: { tabs: Array<{ key: string; la
 }
 
 export function TableWrap({ children }: { children: ReactNode }) {
-  return <div className="overflow-x-auto">{children}</div>;
+  // NFR-06: the wrapper scrolls on its own so the sticky column headings stay in view on long lists.
+  return <div className="max-h-[75vh] overflow-auto print:max-h-none print:overflow-visible">{children}</div>;
 }
 
 export function TextArea({ label, value, onChange, rows = 3, required, hint }: { label: string; value: string; onChange: (v: string) => void; rows?: number; required?: boolean; hint?: ReactNode }) {

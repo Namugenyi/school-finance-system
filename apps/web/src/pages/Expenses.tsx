@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, downloadUrl, qs } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
 import { cleanAmount, formatDateTime, todayIso } from '../lib/format';
-import { Button, Card, DateInput, DecisionButtons, Dt, Empty, ErrorBox, Loading, Modal, Money, MoneyInput, Notice, PageHeader, Pagination, Select, StatusBadge, TableWrap, TextInput } from '../components/ui';
+import { Button, Card, cx, DateInput, DecisionButtons, Dt, Empty, ErrorBox, Loading, Modal, Money, MoneyInput, Notice, PageHeader, Pagination, Select, StatusBadge, TableWrap, TextInput } from '../components/ui';
 import { TermSelect, scopeParams } from '../components/TermSelect';
 import type { Paged } from '../lib/types';
 
@@ -100,14 +100,16 @@ export function ExpensesPage() {
               <thead><tr><th>Expense</th><th>Date</th><th>Term</th><th>Category</th><th>Description</th><th>Supplier</th><th>Funding</th><th>Status</th><th className="num">Amount</th></tr></thead>
               <tbody>
                 {q.data?.items.map((e) => (
-                  <tr key={e.id} className={e.status === 'REJECTED' ? 'text-slate-400' : ''}>
+                  <tr key={e.id} className={cx(e.status === 'REJECTED' && 'text-slate-400', e.fundingBucket === 'OWNER' && 'bg-violet-50')}>
                     <td><Link to={`/expenses/${e.id}`} className="link font-mono text-xs">{e.expenseNo}</Link>{e.payrollRunId && <span className="block text-xs text-slate-500">From payroll</span>}{e.postClose && <span className="block text-xs text-amber-700">Entered after close</span>}</td>
                     <td><Dt value={e.expenseDate} /></td>
                     <td>{e.termLabel}</td>
                     <td>{label('EXPENSE_CATEGORY', e.category)}</td>
                     <td className="max-w-xs whitespace-normal">{e.description}</td>
                     <td>{e.supplier}</td>
-                    <td className="text-xs">{label('FUNDING_SOURCE', e.fundingSource)}<span className="block text-slate-500">{BUCKET[e.fundingBucket]}</span></td>
+                    <td className="text-xs">{label('FUNDING_SOURCE', e.fundingSource)}{e.fundingBucket === 'OWNER'
+                      ? <span className="mt-0.5 block w-fit rounded bg-violet-100 px-1.5 py-0.5 font-semibold text-violet-800">Owner</span>
+                      : <span className="block text-slate-500">{BUCKET[e.fundingBucket]}</span>}</td>
                     <td><StatusBadge status={e.status} /></td>
                     <td className="num"><Money value={e.amount} /></td>
                   </tr>

@@ -7,7 +7,7 @@ import { badRequest, notFound } from '../lib/errors';
 import { audit } from '../lib/audit';
 import { isoDate, parseDate, todayKampala } from '../lib/dates';
 import { nextContributionNo } from '../lib/ids';
-import { dec, money } from '../lib/money';
+import { dec, money, ugx } from '../lib/money';
 import { currentUser, requirePermission } from '../auth/session';
 import { assertRefCode, termLabel } from './setup';
 import { moneyInput } from './fees';
@@ -82,7 +82,7 @@ router.post(
       if (!expense) throw notFound('Expense');
       if (expense.contribution) throw badRequest(`Expense ${expense.expenseNo} is already linked to ${expense.contribution.contributionNo}`);
       if (expense.fundingSource !== 'OWNER_CONTRIBUTION') throw badRequest(`Expense ${expense.expenseNo} must have Owner Contribution as its funding source`);
-      if (!dec(expense.amount).eq(dec(body.amount))) throw badRequest(`The amount must match expense ${expense.expenseNo} (${money(expense.amount)})`);
+      if (!dec(expense.amount).eq(dec(body.amount))) throw badRequest(`The amount must match expense ${expense.expenseNo} (${ugx(expense.amount)})`);
       if (expense.status === 'REJECTED') throw badRequest('That expense was rejected');
     } else if (body.expenseId) {
       throw badRequest('Only an "Expense Paid Directly" contribution links to an expense');
