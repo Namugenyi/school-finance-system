@@ -64,16 +64,19 @@ export function LoginPage() {
   const onCaps = (e: KeyboardEvent<HTMLInputElement>) => setCapsLock(e.getModifierState?.('CapsLock') ?? false);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 px-4 py-8 sm:px-8 lg:py-12">
-      <div className={`grid w-full max-w-6xl items-center gap-8 md:gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16 ${help ? 'lg:items-start' : ''}`}>
-        <header className={`text-center text-white lg:text-left ${help ? 'lg:sticky lg:top-12' : ''}`}>
-          <img src="/stja-logo.webp" alt="Supreme Tower Junior School logo" width={256} height={256} className="mx-auto mb-5 h-28 w-28 drop-shadow-xl sm:h-40 sm:w-40 lg:mx-0 lg:mb-8 lg:h-60 lg:w-60" />
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl lg:leading-tight">Supreme Tower Junior Academy</h1>
-          <p className="mt-2 text-base font-medium text-brand-100 sm:text-lg">Finance &amp; Accounts</p>
-          <p className="mt-6 hidden text-sm text-brand-200 lg:block">Kasangati, Uganda · Authorised staff only</p>
-        </header>
-        <div className="mx-auto w-full max-w-lg">
-          <form onSubmit={submit} noValidate aria-labelledby="sign-in-heading" className="card space-y-5 border-white/10 p-6 shadow-xl sm:p-10">
+    <main className="grid min-h-screen bg-brand-900 lg:grid-cols-2">
+      {/* Left half: solid navy with the school badge. */}
+      <header className="flex flex-col items-center justify-center bg-brand-900 px-6 py-10 text-center text-white sm:py-14 lg:sticky lg:top-0 lg:h-screen lg:px-12">
+        <img src="/stja-logo.webp" alt="Supreme Tower Junior School logo" width={288} height={288} className="mb-5 h-28 w-28 drop-shadow-xl sm:h-40 sm:w-40 lg:mb-8 lg:h-72 lg:w-72" />
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl lg:leading-tight">Supreme Tower Junior Academy</h1>
+        <p className="mt-2 text-base font-medium text-brand-100 sm:text-lg">Finance &amp; Accounts</p>
+        <p className="mt-4 text-sm text-brand-200 lg:mt-8">Kasangati, Uganda · Authorised staff only</p>
+      </header>
+      {/* Right half: light background with a faded badge behind the sign-in card. */}
+      <div className="relative isolate flex items-center justify-center overflow-hidden bg-cream-100 px-4 py-10 sm:px-8 lg:py-12">
+        <img src="/stja-logo.webp" alt="" aria-hidden width={720} height={720} className="pointer-events-none absolute left-1/2 top-1/2 -z-10 w-[min(130%,46rem)] max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-10 grayscale-[30%]" />
+        <div className="w-full max-w-lg">
+          <form onSubmit={submit} noValidate aria-labelledby="sign-in-heading" className="card space-y-5 border-cream-300 p-6 shadow-xl sm:p-10">
             <div>
               <h2 id="sign-in-heading" className="text-2xl font-semibold tracking-tight text-brand-900">Sign in</h2>
               <p className="mt-1.5 text-sm text-slate-600">Use the username and password from the school administrator.</p>
@@ -133,7 +136,6 @@ export function LoginPage() {
             </div>
           </form>
           {help && <SignInHelp username={username} />}
-          <p className="mt-4 text-center text-sm text-brand-100 lg:hidden">Kasangati, Uganda · Authorised staff only</p>
         </div>
       </div>
     </main>
@@ -180,7 +182,7 @@ function SignInHelp({ username: typed }: { username: string }) {
   const hasContact = contact && (contact.phone || contact.email);
   return (
     <div id="sign-in-help" className="login-help mt-4 space-y-4">
-      <section className="card space-y-4 p-6 sm:p-10" aria-labelledby="unlock-heading">
+      <section className="card space-y-4 border-cream-300 p-6 shadow-lg sm:p-10" aria-labelledby="unlock-heading">
         <div>
           <h2 id="unlock-heading" ref={headingRef} tabIndex={-1} className="text-lg font-semibold text-brand-900 focus:outline-none">Unlock account or reset password</h2>
           <p className="mt-1 text-sm text-slate-600">Send a request to the school administrator. They can unlock your account or give you a temporary password to change when you sign in.</p>
@@ -198,7 +200,7 @@ function SignInHelp({ username: typed }: { username: string }) {
           </form>
         )}
       </section>
-      <section className="card space-y-2 p-6 sm:px-10" aria-labelledby="contact-heading">
+      <section className="card space-y-2 border-cream-300 p-6 shadow-lg sm:px-10" aria-labelledby="contact-heading">
         <h2 id="contact-heading" className="text-lg font-semibold text-brand-900">Contact the administrator</h2>
         {hasContact ? (
           <dl className="space-y-1 text-sm">
