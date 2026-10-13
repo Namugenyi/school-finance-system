@@ -54,9 +54,9 @@ export function PaymentsPage() {
                       {r.postClose && <span className="block text-xs text-amber-700">Entered after close</span>}</td>
                     <td><Dt value={r.paymentDate} /></td>
                     <td><Link to={`/pupils/${r.pupilId}`} className="link">{r.pupilName}</Link><span className="block font-mono text-xs text-slate-500">{r.pupilCode}</span></td>
-                    <td className="max-w-xs whitespace-normal text-xs">{r.items}</td>
+                    <td className="min-w-[14rem] max-w-sm whitespace-normal text-xs">{r.items}</td>
                     <td>{label('PAYMENT_METHOD', r.method)}</td>
-                    <td className="text-xs">{r.reference}</td>
+                    <td className="max-w-[10rem] whitespace-normal break-words text-xs">{r.reference}</td>
                     <td className="text-xs">{r.receivedByName}</td>
                     <td className={`num ${r.reversed ? 'line-through' : ''}`}><Money value={r.total} /></td>
                   </tr>
