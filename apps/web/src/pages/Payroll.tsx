@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
 import { cleanAmount, formatDate, formatDateTime, formatMoney, todayIso } from '../lib/format';
-import { Button, Card, DateInput, DecisionButtons, Empty, ErrorBox, Loading, Modal, Money, MoneyInput, Notice, PageHeader, Select, StatusBadge, TableWrap, Tabs, TextInput } from '../components/ui';
+import { Button, Card, DateInput, DecisionButtons, Empty, ErrorBox, Loading, Modal, Money, MoneyInput, Notice, PageHeader, Select, StatusBadge, TableWrap, Tabs, TextInput, Narrow } from '../components/ui';
 
 interface Staff { id: number; staffCode: string; fullName: string; jobRole: string; department: string | null; employmentType: string; basicSalary: string; startDate: string; status: string; phone: string | null; nssfNo: string | null; tin: string | null }
 interface RateSet { id: number; effectiveFrom: string; nssfEmployeeRate: string; nssfEmployerRate: string; notes: string | null; validated: boolean; validatedBy: string | null; bands: Array<{ lowerBound: string; upperBound: string | null; rate: string }> }
@@ -318,7 +318,7 @@ export function PayslipPage() {
   const { school, period, status, entry: e } = q.data;
   const row = (k: string, v: string, strong = false) => <tr className="border-b border-slate-100"><td className="py-1.5">{k}</td><td className={`py-1.5 text-right tabular-nums ${strong ? 'font-bold' : ''}`}>{formatMoney(v)}</td></tr>;
   return (
-    <div className="max-w-xl">
+    <Narrow width="xl">
       <div className="no-print">
         <PageHeader title={`Payslip: ${e.fullName}`} crumbs={[{ label: 'Payroll', to: '/payroll' }, { label: period, to: `/payroll/runs/${id}` }, { label: e.staffCode }]} actions={<Button onClick={() => window.print()}>Print payslip</Button>} />
         {status !== 'POSTED' && <div className="mb-4"><Notice tone="warning">This payroll run is not approved yet ({status.toLowerCase()}). Figures may change.</Notice></div>}
@@ -344,6 +344,6 @@ export function PayslipPage() {
         </table>
         <p className="mt-3 text-xs text-slate-500">Employer NSSF contribution paid on your behalf: UGX {formatMoney(e.nssfEmployer)}</p>
       </article>
-    </div>
+    </Narrow>
   );
 }

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, downloadUrl, qs } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
 import { cleanAmount, formatDateTime, todayIso } from '../lib/format';
-import { Button, Card, cx, DateInput, DecisionButtons, Dt, Empty, ErrorBox, Loading, Modal, Money, MoneyInput, Notice, PageHeader, Pagination, Select, SelectWithOther, StatusBadge, TableWrap, TextInput, withOther } from '../components/ui';
+import { Button, Card, cx, DateInput, DecisionButtons, Dt, Empty, ErrorBox, Loading, Modal, Money, MoneyInput, Notice, PageHeader, Pagination, Select, SelectWithOther, StatusBadge, TableWrap, TextInput, withOther, Narrow } from '../components/ui';
 import { TermSelect, scopeParams } from '../components/TermSelect';
 import type { Paged } from '../lib/types';
 
@@ -141,7 +141,7 @@ export function ExpenseDetailPage() {
   if (!q.data) return <ErrorBox error={q.error} />;
   const e = q.data;
   return (
-    <div className="max-w-3xl">
+    <Narrow width="3xl">
       <PageHeader title={e.description} crumbs={[{ label: 'Expenses', to: '/expenses' }, { label: e.expenseNo }]}
         subtitle={<span className="flex items-center gap-2"><span className="font-mono">{e.expenseNo}</span> <StatusBadge status={e.status} /></span>}
         actions={can('expenses.manage') && e.status === 'PENDING' && !e.payrollRunId && <Button variant="secondary" onClick={() => setEditing(true)}>Edit</Button>} />
@@ -169,6 +169,6 @@ export function ExpenseDetailPage() {
       <Modal open={editing} wide title={`Edit ${e.expenseNo}`} onClose={() => setEditing(false)}>
         <ExpenseForm initial={e} onCancel={() => setEditing(false)} onDone={() => { setEditing(false); void qc.invalidateQueries(); }} />
       </Modal>
-    </div>
+    </Narrow>
   );
 }

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, api, downloadUrl, newKey, qs } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
 import { cleanAmount, formatDate, formatDateTime, formatMoney, sumMoney, todayIso } from '../lib/format';
-import { Button, Card, DateInput, Dt, Empty, ErrorBox, Loading, Modal, Money, Notice, PageHeader, Pagination, Select, StatusBadge, TableWrap, TextArea, TextInput } from '../components/ui';
+import { Button, Card, DateInput, Dt, Empty, ErrorBox, Loading, Modal, Money, Notice, PageHeader, Pagination, Select, StatusBadge, TableWrap, TextArea, TextInput, Narrow } from '../components/ui';
 import { TermSelect, scopeParams } from '../components/TermSelect';
 import type { Charge, Paged } from '../lib/types';
 
@@ -123,7 +123,7 @@ export function NewPaymentPage() {
   const [quick, setQuick] = useState('');
 
   return (
-    <div className="max-w-5xl">
+    <Narrow width="5xl">
       <PageHeader title="Record a payment" crumbs={[{ label: 'Payments', to: '/payments' }, { label: 'New' }]} subtitle="One receipt per visit. Split the money across the fee items the parent is paying for." />
       {!pupilId ? (
         <Card title="1. Find the pupil">
@@ -205,7 +205,7 @@ export function NewPaymentPage() {
         footer={<><Button variant="secondary" onClick={() => setOverpayAsk(null)}>Go back and correct</Button><Button busy={save.isPending} onClick={() => { setOverpayAsk(null); save.mutate(true); }}>Yes, record the overpayment</Button></>}>
         <p className="text-sm">{overpayAsk}</p>
       </Modal>
-    </div>
+    </Narrow>
   );
 }
 
@@ -232,7 +232,7 @@ export function ReceiptPage() {
   const r = q.data;
   const warn = params.get('warn');
   return (
-    <div className="max-w-3xl">
+    <Narrow width="3xl">
       <div className="no-print">
         <PageHeader title={`Receipt ${r.receiptNo}`} crumbs={[{ label: 'Payments', to: '/payments' }, { label: r.receiptNo }]}
           actions={<>
@@ -295,6 +295,6 @@ export function ReceiptPage() {
         <TextArea label="Reason" value={reason} onChange={setReason} required rows={3} />
         <ErrorBox error={reverse.error} />
       </Modal>
-    </div>
+    </Narrow>
   );
 }

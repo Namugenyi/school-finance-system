@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
 import { formatDate } from '../lib/format';
-import { Button, Card, DateInput, ErrorBox, Loading, Modal, Notice, PageHeader, Select, StatusBadge, TableWrap, Tabs, TextInput } from '../components/ui';
+import { Button, Card, DateInput, ErrorBox, Loading, Modal, Notice, PageHeader, Select, StatusBadge, TableWrap, Tabs, TextInput, Narrow } from '../components/ui';
 import { FREQ } from './Fees';
 import type { RefValue, Term } from '../lib/types';
 
@@ -43,7 +43,7 @@ function School({ manage }: { manage: boolean }) {
   if (!f) return <Loading />;
   const set = (k: keyof Settings) => (e: { target: { value: string } }) => { setSaved(false); setF({ ...f, [k]: e.target.value }); };
   return (
-    <div className="max-w-3xl space-y-4">
+    <Narrow width="3xl" className="space-y-4">
       <Card title="School details" actions={manage && <Button busy={save.isPending} onClick={() => save.mutate(undefined)}>Save</Button>}>
         <fieldset disabled={!manage} className="grid gap-4 sm:grid-cols-2">
           <TextInput label="School name" value={f.schoolName} onChange={set('schoolName')} className="sm:col-span-2" />
@@ -62,7 +62,7 @@ function School({ manage }: { manage: boolean }) {
         {manage && <Button className="mt-3" variant={f.payrollEnabled ? 'secondary' : 'primary'} onClick={() => setConfirmPayroll(true)}>{f.payrollEnabled ? 'Switch payroll posting off' : 'Switch payroll posting on'}</Button>}
       </Card>
       <PayrollToggle open={confirmPayroll} on={!f.payrollEnabled} onClose={() => setConfirmPayroll(false)} onDone={() => setF({ ...f, payrollEnabled: !f.payrollEnabled })} />
-    </div>
+    </Narrow>
   );
 }
 

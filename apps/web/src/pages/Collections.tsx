@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api, downloadUrl, qs } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
 import { cleanAmount, formatDateTime } from '../lib/format';
-import { Button, Card, Dt, Empty, ErrorBox, Loading, Money, PageHeader, Select, Stat, StatusBadge, TableWrap, TextInput } from '../components/ui';
+import { Button, Card, Dt, Empty, ErrorBox, Loading, Money, PageHeader, Select, Stat, StatusBadge, TableWrap, TextInput, Narrow } from '../components/ui';
 import { TermSelect, scopeParams } from '../components/TermSelect';
 import type { Charge, Paged } from '../lib/types';
 
@@ -96,7 +96,7 @@ export function StatementPage() {
 
   if (!pupilId)
     return (
-      <div className="max-w-2xl">
+      <Narrow width="2xl">
         <PageHeader title="Statement of account" subtitle="Every charge and payment for a pupil, across all years." />
         <Card>
           <TextInput label="Find pupil" placeholder="Type at least 2 letters of the name or ID" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus />
@@ -108,14 +108,14 @@ export function StatementPage() {
             ))}
           </ul>
         </Card>
-      </div>
+      </Narrow>
     );
   if (q.isLoading) return <Loading />;
   if (!q.data) return <ErrorBox error={q.error} />;
   const s = q.data;
   const terms = [...new Set(s.charges.map((c) => c.termLabel))];
   return (
-    <div className="max-w-5xl">
+    <Narrow width="5xl">
       <div className="no-print">
         <PageHeader title={`Statement: ${s.pupil.fullName}`} crumbs={[{ label: 'Statements', to: '/statements' }, { label: s.pupil.pupilCode }]}
           actions={<>
@@ -187,6 +187,6 @@ export function StatementPage() {
           </TableWrap>
         )}
       </article>
-    </div>
+    </Narrow>
   );
 }

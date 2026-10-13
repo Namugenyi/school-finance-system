@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { Button, Card, ErrorBox, Notice, PageHeader, TextInput } from '../components/ui';
+import { Button, Card, ErrorBox, Notice, PageHeader, TextInput, Narrow } from '../components/ui';
 
 export function LoginPage() {
   const { refresh } = useAuth();
@@ -69,7 +69,7 @@ export function AccountPage({ forced }: { forced?: boolean }) {
     }
   };
   return (
-    <div className="max-w-lg">
+    <Narrow width="lg">
       <PageHeader title={forced ? 'Choose a new password' : 'Change password'} subtitle={forced ? 'You need to set your own password before using the system.' : undefined} />
       <Card>
         <form onSubmit={submit} className="space-y-4">
@@ -84,6 +84,6 @@ export function AccountPage({ forced }: { forced?: boolean }) {
           </div>
         </form>
       </Card>
-    </div>
+    </Narrow>
   );
 }

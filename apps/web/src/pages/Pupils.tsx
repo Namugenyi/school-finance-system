@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, qs } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
 import { formatDate, formatDateTime, todayIso } from '../lib/format';
-import { Button, Card, DateInput, Dt, Empty, ErrorBox, Loading, Modal, Money, Notice, OTHER, PageHeader, Pagination, Select, SelectWithOther, StatusBadge, TableWrap, Tabs, TextArea, TextInput, withOther } from '../components/ui';
+import { Button, Card, DateInput, Dt, Empty, ErrorBox, Loading, Modal, Money, Notice, OTHER, PageHeader, Pagination, Select, SelectWithOther, StatusBadge, TableWrap, Tabs, TextArea, TextInput, withOther, Narrow } from '../components/ui';
 import type { Charge, Paged } from '../lib/types';
 
 interface Pupil {
@@ -107,7 +107,7 @@ export function PupilFormPage() {
     save.mutate();
   };
   return (
-    <div className="max-w-3xl">
+    <Narrow width="4xl">
       <PageHeader title={editing ? `Edit ${existing.data?.fullName ?? 'pupil'}` : 'Register a pupil'} crumbs={[{ label: 'Pupils', to: '/pupils' }, { label: editing ? 'Edit' : 'New' }]}
         subtitle={editing ? <>Pupil ID <span className="font-mono">{existing.data?.pupilCode}</span> never changes. Use “Change class” or “Change status” on the pupil page for those.</> : 'The pupil ID (STJA-YYYY-NNNN) is issued automatically when you save.'} />
       <form onSubmit={submit} className="space-y-6">
@@ -151,7 +151,7 @@ export function PupilFormPage() {
           <Button variant="secondary" onClick={() => navigate(-1)}>Cancel</Button>
         </div>
       </form>
-    </div>
+    </Narrow>
   );
 }
 

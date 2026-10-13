@@ -323,6 +323,13 @@ export function Tabs({ tabs, active, onChange }: { tabs: Array<{ key: string; la
   );
 }
 
+const NARROW = { lg: 'max-w-lg', xl: 'max-w-xl', '2xl': 'max-w-2xl', '3xl': 'max-w-3xl', '4xl': 'max-w-4xl', '5xl': 'max-w-5xl' } as const;
+
+/** Page body for forms and single documents: a readable width, centred in the content area. */
+export function Narrow({ width = '3xl', className, children }: { width?: keyof typeof NARROW; className?: string; children: ReactNode }) {
+  return <div className={cx('mx-auto w-full', NARROW[width], className)}>{children}</div>;
+}
+
 export function TableWrap({ children }: { children: ReactNode }) {
   // NFR-06: the wrapper scrolls on its own so the sticky column headings stay in view on long lists.
   return <div className="max-h-[75vh] overflow-auto print:max-h-none print:overflow-visible">{children}</div>;
