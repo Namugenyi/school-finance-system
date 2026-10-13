@@ -44,6 +44,23 @@ const pupilFields = {
   notes: optionalText(1000),
 };
 
+/** The parent or guardian's name, relationship, primary telephone and address are required (alternative phone is not). */
+const GUARDIAN_REQUIRED = [
+  ['guardianName', 'Parent / guardian name'],
+  ['guardianRelationship', "Guardian's relationship to pupil"],
+  ['phonePrimary', 'Primary telephone'],
+  ['address', 'Physical address'],
+] as const;
+
+/**
+ * On registration every required guardian field must be filled. On an edit, only the fields sent are checked,
+ * so a required field can't be blanked; older records missing them are completed the next time they're edited in full.
+ */
+function assertGuardianDetails(body: Partial<Record<(typeof GUARDIAN_REQUIRED)[number][0], string | null | undefined>>, creating: boolean) {
+  const missing = GUARDIAN_REQUIRED.filter(([k]) => (creating || k in body) && !body[k]?.toString().trim()).map(([, label]) => label);
+  if (missing.length) throw badRequest(`${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} required`);
+}
+
 /** Relationship codes must come from the RELATIONSHIP reference list (BR-24). */
 async function assertRelationships(db: Db, body: { guardianRelationship?: string | null; emergencyRelationship?: string | null }) {
   if (body.guardianRelationship) await assertRefCode(db, 'RELATIONSHIP', body.guardianRelationship, 'Relationship of the parent / guardian');
@@ -158,6 +175,7 @@ router.post(
     const body = parse(z.object({ ...pupilFields, classId: z.number().int(), dateJoined: z.string() }), req.body);
     const user = currentUser(req);
     await assertRefCode(prisma, 'SEX', body.sex, 'Sex');
+    assertGuardianDetails(body, true);
     await assertRelationships(prisma, body);
     const cls = await prisma.schoolClass.findUnique({ where: { id: body.classId } });
     if (!cls || !cls.active) throw badRequest('Choose an active class');
@@ -221,6 +239,7 @@ router.patch(
     const before = await prisma.pupil.findUnique({ where: { id } });
     if (!before) throw notFound('Pupil');
     if (body.sex) await assertRefCode(prisma, 'SEX', body.sex, 'Sex');
+    assertGuardianDetails(body, false);
     await assertRelationships(prisma, body);
     const dateJoined = body.dateJoined ? parseDate(body.dateJoined, 'Date joined') : undefined;
     const dateOfBirth = body.dateOfBirth === undefined ? undefined : body.dateOfBirth ? parseDate(body.dateOfBirth, 'Date of birth') : null;

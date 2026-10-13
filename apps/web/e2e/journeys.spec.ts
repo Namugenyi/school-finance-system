@@ -36,6 +36,8 @@ test('a bursar registers a pupil and gets an automatic pupil ID', async ({ brows
   await page.getByLabel("Emergency contact's relationship to pupil").selectOption({ label: 'Other' });
   await page.getByLabel("Emergency contact's relationship (please specify)").fill('Neighbour');
   await page.getByLabel('Emergency contact telephone').fill('0782000000');
+  await page.getByLabel('Primary telephone').fill('0772000000');
+  await page.getByLabel('Physical address').fill('Kasangati, Wakiso');
   await page.getByRole('button', { name: 'Register pupil' }).click();
   await expect(page.getByRole('heading', { name: PUPIL })).toBeVisible();
   await expect(page.getByText('STJA-2026-0001').first()).toBeVisible();
@@ -309,6 +311,12 @@ test('the register-pupil form explains problems beside each field and tidies dat
   await page.getByLabel('Sex').selectOption({ label: 'Male' });
   await page.getByLabel('Class').selectOption({ label: 'P2 (Primary)' });
   await expect(page.getByText('Section: Primary')).toBeVisible();
+  await page.getByRole('button', { name: 'Register pupil' }).click();
+  await expect(page.locator('.field-error', { hasText: 'Enter the parent or guardian’s name' })).toBeVisible();
+  await expect(page.getByLabel('Alternative telephone')).not.toHaveAttribute('aria-invalid', 'true');
+  await page.getByLabel('Parent / guardian name').fill('Grace Form Check');
+  await page.getByLabel("Guardian's relationship to pupil").selectOption({ label: 'Mother' });
+  await page.getByLabel('Physical address').fill('Gayaza, Wakiso');
   await page.getByRole('button', { name: 'Register pupil' }).click();
   await expect(page.getByRole('heading', { name: 'Brian Form Check' })).toBeVisible();
   await expect(page.getByText('05/02/2019')).toBeVisible();

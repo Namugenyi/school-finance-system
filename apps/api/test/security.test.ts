@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { getApp, login, PASSWORD, resetDb, type World } from './helpers';
+import { getApp, GUARDIAN, login, PASSWORD, resetDb, type World } from './helpers';
 import { prisma } from '../src/db';
 import { LOGIN_FAILED_MESSAGE } from '../src/auth/routes';
 
@@ -78,7 +78,7 @@ describe('role permissions enforced on the server (WR-01, E2E-16)', () => {
 
   it('hides guardian phone numbers from roles without contact access', async () => {
     const bursar = await login('bursar');
-    await bursar.post('/api/pupils', { fullName: 'Contact Check', sex: 'MALE', dateJoined: '2026-01-10', classId: w.classes.p1, phonePrimary: '0772000111' });
+    await bursar.post('/api/pupils', { ...GUARDIAN, fullName: 'Contact Check', sex: 'MALE', dateJoined: '2026-01-10', classId: w.classes.p1, phonePrimary: '0772000111' });
     const owner = await login('owner');
     const res = await owner.get('/api/pupils?search=Contact');
     expect(res.body.items[0].phonePrimary).toBeUndefined();

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { createPupil, login, resetDb, type Client, type World } from './helpers';
+import { createPupil, GUARDIAN, login, resetDb, type Client, type World } from './helpers';
 import { prisma } from '../src/db';
 
 let w: World;
@@ -87,10 +87,34 @@ describe('pupil register (FR-201 to FR-207)', () => {
     expect(new Set(codes).size).toBe(12);
   });
 
+  it('requires the parent or guardian name, relationship, primary phone and address, but not the alternative phone', async () => {
+    const base = { fullName: 'Guardian Check', sex: 'MALE', dateJoined: '2026-01-10', classId: w.classes.p1 };
+    const none = await bursar.post('/api/pupils', base);
+    expect(none.status).toBe(400);
+    expect(none.body.error.message).toBe("Parent / guardian name, Guardian's relationship to pupil, Primary telephone, Physical address are required");
+    for (const k of Object.keys(GUARDIAN)) {
+      const res = await bursar.post('/api/pupils', { ...base, ...GUARDIAN, [k]: '  ' });
+      expect(res.status, k).toBe(400);
+    }
+    const ok = await bursar.post('/api/pupils', { ...base, ...GUARDIAN, phoneAlt: '' });
+    expect(ok.status).toBe(200);
+    // An edit cannot blank a required field, but can leave out fields it isn't changing.
+    expect((await bursar.patch(`/api/pupils/${ok.body.id}`, { address: '' })).status).toBe(400);
+    expect((await bursar.patch(`/api/pupils/${ok.body.id}`, { notes: 'Fine' })).status).toBe(200);
+  });
+
+  it('lets an older pupil with blank guardian details be completed through an edit', async () => {
+    const p = await prisma.pupil.update({ where: { id: (await bursar.post('/api/pupils', { ...GUARDIAN, fullName: 'Legacy Pupil', sex: 'MALE', dateJoined: '2026-01-10', classId: w.classes.p1 })).body.id }, data: { guardianName: null, guardianRelationship: null, address: null } });
+    expect((await bursar.patch(`/api/pupils/${p.id}`, { fullName: 'Legacy Pupil', guardianName: '', guardianRelationship: '', address: '' })).status).toBe(400);
+    const done = await bursar.patch(`/api/pupils/${p.id}`, { fullName: 'Legacy Pupil', guardianName: 'Now Known', guardianRelationship: 'FATHER', address: 'Gayaza' });
+    expect(done.status).toBe(200);
+    expect(done.body).toMatchObject({ guardianName: 'Now Known', guardianRelationship: 'FATHER', address: 'Gayaza' });
+  });
+
   it('validates Ugandan phone numbers (A-12)', async () => {
-    const res = await bursar.post('/api/pupils', { fullName: 'Phone Test', sex: 'MALE', dateJoined: '2026-01-10', classId: w.classes.p1, phonePrimary: '12345' });
+    const res = await bursar.post('/api/pupils', { ...GUARDIAN, fullName: 'Phone Test', sex: 'MALE', dateJoined: '2026-01-10', classId: w.classes.p1, phonePrimary: '12345' });
     expect(res.status).toBe(400);
-    const ok = await bursar.post('/api/pupils', { fullName: 'Phone Ok', sex: 'MALE', dateJoined: '2026-01-10', classId: w.classes.p1, phonePrimary: '+256 772 123 456' });
+    const ok = await bursar.post('/api/pupils', { ...GUARDIAN, fullName: 'Phone Ok', sex: 'MALE', dateJoined: '2026-01-10', classId: w.classes.p1, phonePrimary: '+256 772 123 456' });
     expect(ok.body.phonePrimary).toBe('+256772123456');
   });
 
@@ -122,7 +146,7 @@ describe('parent / guardian and emergency contact', () => {
   });
 
   it('rejects a relationship that is not in the list and a bad emergency phone (BR-24, A-12)', async () => {
-    const base = { fullName: 'Bad Relation', sex: 'FEMALE', dateJoined: '2026-01-20', classId: w.classes.p1 };
+    const base = { ...GUARDIAN, fullName: 'Bad Relation', sex: 'FEMALE', dateJoined: '2026-01-20', classId: w.classes.p1 };
     expect((await bursar.post('/api/pupils', { ...base, guardianRelationship: 'NEIGHBOUR' })).status).toBe(400);
     expect((await bursar.post('/api/pupils', { ...base, emergencyRelationship: 'NEIGHBOUR' })).status).toBe(400);
     expect((await bursar.post('/api/pupils', { ...base, emergencyPhone: '12345' })).status).toBe(400);
@@ -140,7 +164,7 @@ describe('parent / guardian and emergency contact', () => {
 
 describe('"Other" asks for the details that are not on the list', () => {
   it('needs and keeps the typed relationship, and clears it when another choice is made', async () => {
-    const base = { fullName: 'Other Relation', sex: 'FEMALE', dateJoined: '2026-01-20', classId: w.classes.p1 };
+    const base = { ...GUARDIAN, fullName: 'Other Relation', sex: 'FEMALE', dateJoined: '2026-01-20', classId: w.classes.p1 };
     expect((await bursar.post('/api/pupils', { ...base, guardianRelationship: 'OTHER' })).status).toBe(400);
     expect((await bursar.post('/api/pupils', { ...base, emergencyRelationship: 'OTHER', emergencyRelationshipOther: '  ' })).status).toBe(400);
     const p = (await bursar.post('/api/pupils', { ...base, guardianRelationship: 'OTHER', guardianRelationshipOther: 'Step-mother', emergencyRelationship: 'OTHER', emergencyRelationshipOther: 'Neighbour' })).body;

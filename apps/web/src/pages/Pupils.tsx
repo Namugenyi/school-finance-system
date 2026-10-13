@@ -126,11 +126,15 @@ export function PupilFormPage() {
     if (badDates.dateOfBirth) e.dateOfBirth = 'Enter the date as DD/MM/YYYY, for example 05/02/2020';
     else if (form.dateOfBirth && form.dateJoined && form.dateOfBirth >= form.dateJoined) e.dateOfBirth = 'Date of birth must be before the date joined';
     if (!editing && !form.classId) e.classId = 'Choose a class';
-    if (form.guardianRelationship === OTHER && !form.guardianRelationshipOther.trim()) e.guardianRelationshipOther = 'Type the relationship';
+    if (!form.guardianName.trim()) e.guardianName = 'Enter the parent or guardian’s name';
+    if (!form.guardianRelationship) e.guardianRelationship = 'Choose how they are related to the pupil';
+    else if (form.guardianRelationship === OTHER && !form.guardianRelationshipOther.trim()) e.guardianRelationshipOther = 'Type the relationship';
+    if (!form.phonePrimary.trim()) e.phonePrimary = 'Enter a telephone number for the parent or guardian';
+    if (!form.address.trim()) e.address = 'Enter where the family lives';
     if (form.emergencyRelationship === OTHER && !form.emergencyRelationshipOther.trim()) e.emergencyRelationshipOther = 'Type the relationship';
     for (const k of ['phonePrimary', 'phoneAlt', 'emergencyPhone'] as const) {
       const problem = phoneProblem(form[k]);
-      if (problem) e[k] = problem;
+      if (problem && !e[k]) e[k] = problem;
     }
     return e;
   };
@@ -161,6 +165,8 @@ export function PupilFormPage() {
     save.mutate();
   };
   const err = (k: keyof typeof emptyForm) => errors[k] ?? null;
+  const loaded = existing.data;
+  const guardianIncomplete = editing && !!loaded && !(loaded.guardianName && loaded.guardianRelationship && loaded.phonePrimary && loaded.address);
   const problems = Object.entries(errors).filter(([, v]) => v) as Array<[keyof typeof emptyForm, string]>;
   const phoneProps = (k: 'phonePrimary' | 'phoneAlt' | 'emergencyPhone') => ({
     value: form[k], type: 'tel', inputMode: 'tel' as const, autoComplete: 'off', maxLength: 20, error: err(k),
@@ -174,6 +180,7 @@ export function PupilFormPage() {
   });
   const FIELD_LABEL: Partial<Record<keyof typeof emptyForm, string>> = {
     fullName: 'Full name', sex: 'Sex', dateOfBirth: 'Date of birth', dateJoined: 'Date joined', classId: 'Class',
+    guardianName: 'Parent / guardian name', guardianRelationship: 'Guardian’s relationship to pupil', address: 'Physical address',
     guardianRelationshipOther: 'Guardian’s relationship', phonePrimary: 'Primary telephone', phoneAlt: 'Alternative telephone',
     emergencyRelationshipOther: 'Emergency contact’s relationship', emergencyPhone: 'Emergency contact telephone',
   };
@@ -205,13 +212,16 @@ export function PupilFormPage() {
           </div>
         </Card>
         <Card title="Parent or guardian">
+          {guardianIncomplete && (
+            <div className="mb-4"><Notice tone="warning" title="Parent or guardian details are incomplete">This pupil was registered before these details were required. Fill in the fields marked * to save your changes.</Notice></div>
+          )}
           <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-            <TextInput label="Parent / guardian name" value={form.guardianName} onChange={(e) => set('guardianName')(e.target.value)} autoComplete="off" maxLength={120} />
-            <SelectWithOther label="Guardian's relationship to pupil" value={form.guardianRelationship} onChange={set('guardianRelationship')} placeholder="Choose…" options={options('RELATIONSHIP')}
+            <TextInput label="Parent / guardian name" value={form.guardianName} onChange={(e) => set('guardianName')(e.target.value)} autoComplete="off" maxLength={120} required error={err('guardianName')} />
+            <SelectWithOther label="Guardian's relationship to pupil" value={form.guardianRelationship} onChange={set('guardianRelationship')} placeholder="Choose…" options={options('RELATIONSHIP')} required error={err('guardianRelationship')}
               other={form.guardianRelationshipOther} onOtherChange={set('guardianRelationshipOther')} otherLabel="Guardian's relationship (please specify)" otherError={err('guardianRelationshipOther')} />
-            <TextInput label="Primary telephone" {...phoneProps('phonePrimary')} placeholder="0772 123 456" hint={PHONE_HINT} />
+            <TextInput label="Primary telephone" {...phoneProps('phonePrimary')} placeholder="0772 123 456" hint={PHONE_HINT} required />
             <TextInput label="Alternative telephone" {...phoneProps('phoneAlt')} placeholder="0752 123 456" hint="Optional" />
-            <TextArea label="Physical address" value={form.address} onChange={set('address')} rows={2} maxLength={300} className="sm:col-span-2" autoComplete="off" hint="Village or estate, parish and district" />
+            <TextArea label="Physical address" value={form.address} onChange={set('address')} rows={2} maxLength={300} className="sm:col-span-2" autoComplete="off" hint="Village or estate, parish and district" required error={err('address')} />
           </div>
         </Card>
         <Card title="Emergency contact">
