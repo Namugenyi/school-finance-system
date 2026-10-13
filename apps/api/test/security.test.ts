@@ -2,6 +2,7 @@ import request from 'supertest';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getApp, login, PASSWORD, resetDb, type World } from './helpers';
 import { prisma } from '../src/db';
+import { LOGIN_FAILED_MESSAGE } from '../src/auth/routes';
 
 let w: World;
 beforeAll(async () => {
@@ -17,14 +18,17 @@ describe('authentication (WR-03)', () => {
   it('rejects a wrong password with a generic message', async () => {
     const res = await request(getApp()).post('/api/auth/login').send({ username: 'bursar', password: 'wrong-password-1' });
     expect(res.status).toBe(401);
-    expect(res.body.error.message).toBe('Username or password is incorrect');
+    expect(res.body.error.message).toBe(LOGIN_FAILED_MESSAGE);
   });
 
   it('locks an account after five failed attempts', async () => {
     for (let i = 0; i < 5; i++) await request(getApp()).post('/api/auth/login').send({ username: 'owner', password: 'bad-password-9' });
     const res = await request(getApp()).post('/api/auth/login').send({ username: 'owner', password: PASSWORD });
     expect(res.status).toBe(401);
-    expect(res.body.error.message).toMatch(/locked/);
+    // Same message as a wrong password or an unknown user, so the lock is not revealed.
+    expect(res.body.error.message).toBe(LOGIN_FAILED_MESSAGE);
+    const unknown = await request(getApp()).post('/api/auth/login').send({ username: 'no-such-user', password: PASSWORD });
+    expect(unknown.body.error.message).toBe(LOGIN_FAILED_MESSAGE);
     await prisma.user.update({ where: { username: 'owner' }, data: { lockedUntil: null } });
   });
 

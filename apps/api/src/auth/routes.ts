@@ -13,6 +13,8 @@ import { createSession, currentUser, requireAuth, setSessionCookie, SESSION_COOK
 export const router = Router();
 
 const MAX_FAILED = 5;
+export const LOGIN_FAILED_MESSAGE =
+  'We could not sign you in. Check your username and password and try again. After 5 failed attempts, sign-in is paused for 15 minutes.';
 const LOCK_MINUTES = 15;
 
 const loginLimiter = rateLimit({
@@ -59,13 +61,17 @@ router.post(
   handle(async (req, res) => {
     const body = parse(z.object({ username: z.string().min(1), password: z.string().min(1) }), req.body);
     const user = await prisma.user.findUnique({ where: { username: body.username.trim().toLowerCase() } });
-    const genericError = unauthorized('Username or password is incorrect');
+    // One message for every failure (unknown user, wrong password, inactive or locked account),
+    // so the sign-in page never reveals whether a username exists or is locked.
+    const genericError = unauthorized(LOGIN_FAILED_MESSAGE);
     if (!user || !user.active) {
       await bcrypt.compare(body.password, '$2a$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinva');
       throw genericError;
     }
     if (user.lockedUntil && user.lockedUntil > new Date()) {
-      throw unauthorized('This account is temporarily locked after repeated failed sign-ins. Try again later.');
+      await bcrypt.compare(body.password, user.passwordHash);
+      await audit(prisma, null, 'auth.login_locked', 'User', user.id, { ip: req.ip });
+      throw genericError;
     }
     const ok = await bcrypt.compare(body.password, user.passwordHash);
     if (!ok) {

@@ -22,6 +22,9 @@
     background-position: right 0.625rem center;
     background-size: 1.25rem 1.25rem;
   }
+  /* Sign-in help fields: a stronger border for 3:1 contrast against the white card (WCAG 1.4.11). */
+  .login-help .input { @apply border-slate-500 focus:ring-2; }
+  .login-help input.input, .login-help select.input { height: 2.75rem; }
   .label { @apply mb-1 block text-sm font-medium text-slate-700; }
   .card { @apply rounded-lg border border-cream-200 bg-white shadow-sm; }
   /* :where() keeps these at utility strength, so a cell's own class (e.g. whitespace-normal) wins. */

@@ -253,3 +253,34 @@ test('a locked-out user asks for help and the administrator sets a temporary pas
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('heading', { name: 'Choose a new password' })).toBeVisible();
 });
+
+test('the sign-in form flags empty fields, can show the password, and gives one message for any failure', async ({ browser }) => {
+  const page = await (await browser.newContext()).newPage();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByText('Enter your username')).toBeVisible();
+  await expect(page.getByLabel('Username')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByLabel('Username')).toBeFocused();
+
+  await page.getByLabel('Username').fill('nobody-here');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByText('Enter your password')).toBeVisible();
+  await expect(page.getByLabel('Password', { exact: true })).toBeFocused();
+
+  const password = page.getByLabel('Password', { exact: true });
+  await password.fill('Wrong-pass-1');
+  await expect(password).toHaveAttribute('type', 'password');
+  await page.getByRole('button', { name: 'Show password' }).click();
+  await expect(password).toHaveAttribute('type', 'text');
+  await expect(page.getByRole('button', { name: 'Hide password' })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  const unknownUser = await page.getByRole('alert').textContent();
+  expect(unknownUser).toMatch(/could not sign you in/);
+  await expect(password).toHaveAttribute('type', 'password');
+
+  await page.getByLabel('Username').fill('auditor');
+  await password.fill('Wrong-pass-1');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('alert')).toHaveText(unknownUser!);
+});
