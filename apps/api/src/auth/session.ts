@@ -50,7 +50,7 @@ export function setSessionCookie(res: Response, token: string, expiresAt: Date) 
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'strict',
-    secure: config.isProduction,
+    secure: config.cookieSecure,
     expires: expiresAt,
     path: '/',
   });

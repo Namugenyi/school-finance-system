@@ -6,5 +6,7 @@ export const config = {
   sessionHours: Number(process.env.SESSION_HOURS ?? 10),
   sessionIdleMinutes: Number(process.env.SESSION_IDLE_MINUTES ?? 60),
   staticDir: process.env.STATIC_DIR,
+  // Secure cookies need HTTPS. Set COOKIE_SECURE=false only for a trial on a private network without HTTPS.
+  cookieSecure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : process.env.NODE_ENV === 'production',
   timezone: 'Africa/Kampala',
 };
