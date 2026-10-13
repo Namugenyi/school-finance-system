@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-slate-50 text-slate-800 antialiased; }
+  :focus-visible { @apply outline-none ring-2 ring-brand-500 ring-offset-2; }
+}
+
+@layer components {
+  .input {
+    @apply block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400
+      focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:bg-slate-100 disabled:text-slate-500;
+  }
+  .label { @apply mb-1 block text-sm font-medium text-slate-700; }
+  .card { @apply rounded-lg border border-slate-200 bg-white shadow-sm; }
+  .table { @apply min-w-full divide-y divide-slate-200 text-sm; }
+  .table thead th { @apply whitespace-nowrap bg-slate-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600; }
+  .table tbody td { @apply whitespace-nowrap px-3 py-2 align-top; }
+  .table tbody tr { @apply hover:bg-slate-50; }
+  .num { @apply text-right tabular-nums; }
+  .computed { @apply bg-slate-50/70 text-slate-700; }
+  .link { @apply font-medium text-brand-700 hover:text-brand-900 hover:underline; }
+}
+
+/* Printing: receipts on A4 portrait (FR-1206), lists in landscape with repeating headers (FR-1305, NFR-09). */
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+  .no-print { display: none !important; }
+  body { background: white; }
+  .print-area { box-shadow: none !important; border: none !important; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  .landscape-print { page: landscape; }
+}
+@page landscape { size: A4 landscape; margin: 10mm; }
