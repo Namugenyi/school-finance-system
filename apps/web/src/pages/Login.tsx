@@ -30,8 +30,7 @@ export function LoginPage() {
           <img src="/stja-logo.webp" alt="Supreme Tower Junior School logo" width={256} height={256} className="mx-auto mb-5 h-32 w-32 drop-shadow-xl sm:h-44 sm:w-44 lg:mx-0 lg:mb-8 lg:h-64 lg:w-64" />
           <h1 className="text-2xl font-semibold sm:text-3xl lg:text-4xl">Supreme Tower Junior Academy</h1>
           <p className="mt-1 text-base text-brand-100 sm:text-lg">Finance &amp; Accounts</p>
-          <p className="mt-6 hidden max-w-md text-sm leading-relaxed text-brand-100 lg:block">Fees, payments, receipts, expenses, payroll and term reports for the school, in one place.</p>
-          <p className="mt-2 hidden text-xs text-brand-200 lg:block">Kasangati, Uganda · Authorised staff only</p>
+          <p className="mt-6 hidden text-xs text-brand-200 lg:block">Kasangati, Uganda · Authorised staff only</p>
         </div>
         <div className="mx-auto w-full max-w-xl">
           <form onSubmit={submit} className="card space-y-5 p-6 sm:p-10">
