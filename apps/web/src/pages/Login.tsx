@@ -24,26 +24,34 @@ export function LoginPage() {
     }
   };
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 p-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 text-center text-white">
-          <img src="/stja-logo.webp" alt="Supreme Tower Junior School logo" width={160} height={160} className="mx-auto mb-4 h-32 w-32 drop-shadow-lg sm:h-40 sm:w-40" />
-          <h1 className="text-xl font-semibold">Supreme Tower Junior Academy</h1>
-          <p className="text-sm text-brand-100">Finance &amp; Accounts</p>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 px-4 py-8 sm:px-6 lg:py-12">
+      <div className="grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
+        <div className="text-center text-white lg:text-left">
+          <img src="/stja-logo.webp" alt="Supreme Tower Junior School logo" width={256} height={256} className="mx-auto mb-5 h-32 w-32 drop-shadow-xl sm:h-44 sm:w-44 lg:mx-0 lg:mb-8 lg:h-64 lg:w-64" />
+          <h1 className="text-2xl font-semibold sm:text-3xl lg:text-4xl">Supreme Tower Junior Academy</h1>
+          <p className="mt-1 text-base text-brand-100 sm:text-lg">Finance &amp; Accounts</p>
+          <p className="mt-6 hidden max-w-md text-sm leading-relaxed text-brand-100 lg:block">Fees, payments, receipts, expenses, payroll and term reports for the school, in one place.</p>
+          <p className="mt-2 hidden text-xs text-brand-200 lg:block">Kasangati, Uganda · Authorised staff only</p>
         </div>
-        <form onSubmit={submit} className="card space-y-4 p-6">
-          <TextInput label="Username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus />
-          <TextInput label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          <ErrorBox error={error} />
-          <Button type="submit" className="w-full" busy={busy}>Sign in</Button>
-          <div className="text-center">
-            <button type="button" className="text-sm font-medium text-accent-700 underline-offset-2 hover:underline" aria-expanded={help} aria-controls="sign-in-help" onClick={() => setHelp(!help)}>
-              {help ? 'Hide sign-in help' : 'Trouble signing in?'}
-            </button>
-          </div>
-        </form>
-        {help && <SignInHelp username={username} />}
-        <p className="mt-4 text-center text-xs text-brand-100">Kasangati, Uganda · Authorised staff only</p>
+        <div className="mx-auto w-full max-w-xl">
+          <form onSubmit={submit} className="card space-y-5 p-6 sm:p-10">
+            <div>
+              <h2 className="text-xl font-semibold text-brand-900">Sign in</h2>
+              <p className="mt-1 text-sm text-slate-600">Use the username and password the school administrator gave you.</p>
+            </div>
+            <TextInput label="Username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus />
+            <TextInput label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <ErrorBox error={error} />
+            <Button type="submit" className="w-full py-2.5 text-base" busy={busy}>Sign in</Button>
+            <div className="text-center">
+              <button type="button" className="text-sm font-medium text-accent-700 underline-offset-2 hover:underline" aria-expanded={help} aria-controls="sign-in-help" onClick={() => setHelp(!help)}>
+                {help ? 'Hide sign-in help' : 'Trouble signing in?'}
+              </button>
+            </div>
+          </form>
+          {help && <SignInHelp username={username} />}
+          <p className="mt-4 text-center text-xs text-brand-100 lg:hidden">Kasangati, Uganda · Authorised staff only</p>
+        </div>
       </div>
     </div>
   );
@@ -86,7 +94,7 @@ function SignInHelp({ username: typed }: { username: string }) {
   const hasContact = contact && (contact.phone || contact.email);
   return (
     <div id="sign-in-help" className="mt-4 space-y-4">
-      <section className="card space-y-4 p-6" aria-labelledby="unlock-heading">
+      <section className="card space-y-4 p-6 sm:p-10" aria-labelledby="unlock-heading">
         <div>
           <h2 id="unlock-heading" className="text-base font-semibold text-brand-900">Unlock account or reset password</h2>
           <p className="mt-1 text-sm text-slate-600">Send a request to the school administrator. They can unlock your account or give you a temporary password to change when you sign in.</p>
@@ -104,7 +112,7 @@ function SignInHelp({ username: typed }: { username: string }) {
           </form>
         )}
       </section>
-      <section className="card space-y-2 p-6" aria-labelledby="contact-heading">
+      <section className="card space-y-2 p-6 sm:px-10" aria-labelledby="contact-heading">
         <h2 id="contact-heading" className="text-base font-semibold text-brand-900">Contact the administrator</h2>
         {hasContact ? (
           <dl className="space-y-1 text-sm">
