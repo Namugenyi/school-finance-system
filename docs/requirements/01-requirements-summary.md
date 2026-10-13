@@ -6,7 +6,7 @@ Phase 1 of the STJA Finance & Accounts web application: requirements analysis of
 |---|---|
 | 01-requirements-summary.md (this file) | What the FRS asks for, how it maps to web modules, release scope, outline plan |
 | [02-traceability-matrix.md](02-traceability-matrix.md) | Every requirement with module, entities, UI, logic and planned tests ([CSV](traceability-matrix.csv)) |
-| [03-decisions-and-issues.md](03-decisions-and-issues.md) | Blocking decisions, go-live needs, defaults, FRS conflicts, proposed FRS changes, risks |
+| [03-decisions-and-issues.md](03-decisions-and-issues.md) | Decisions D-01 to D-07 (all approved 13/10/2026), go-live needs, defaults, FRS conflicts, proposed FRS changes, risks |
 
 ## 1. Confirmation of inputs
 
