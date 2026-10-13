@@ -8,7 +8,9 @@ ID prefixes: `D` blocking decision, `G` needed before go-live (does not block bu
 
 Each of these changes a financial figure the school will see, and the FRS does not settle it. Building on a guess would mean reworking posted data later. A recommendation is given for each; replying "accept all" adopts every recommendation.
 
-### D-01. What happens to the original charge when its balance is carried forward?
+> **Status: all seven approved.** Tina accepted every recommendation below on 13/10/2026 (D-01 option 1, transfer). These are now binding for design and build. In D-01 to D-07, read "Recommended" as "Approved".
+
+### D-01 (approved). What happens to the original charge when its balance is carried forward?
 
 **Why it blocks.** The FRS raises a new Arrears B/F charge in the new term (FR-1102) but leaves the original charge untouched, still showing its unpaid balance. The same debt then appears twice: in the Arrears List "all terms" view (FR-1302), on the Pupil Statement that sums every year (FR-1403), and in Total Billed. When the parent pays the Arrears B/F charge, the original charge still shows Unpaid forever. There is a second problem: if a pupil has arrears in several items, they become several Arrears B/F charges for the same pupil, item and term, which breaks the one-charge-per-pupil-item-term rule (FR-501) that payment matching (BR-02) relies on.
 
@@ -20,7 +22,7 @@ Each of these changes a financial figure the school will see, and the FRS does n
 
 Affects: FR-501, FR-503, FR-1102, FR-1103, FR-1302, FR-1403, FR-1501, FR-1601, BR-02, BR-20, WR-18.
 
-### D-02. Does "Total Billed" mean before or after discounts?
+### D-02 (approved). Does "Total Billed" mean before or after discounts?
 
 **Why it blocks.** Balances use Net Amount Due (after discount), but the FRS never says whether Total Billed in the arrears list, statement, reports, dashboard, snapshots and collection rate (BR-07) is gross or net. With gross, Billed − Collected ≠ Outstanding, and discounts make the collection rate look worse than it is.
 
@@ -28,7 +30,7 @@ Affects: FR-501, FR-503, FR-1102, FR-1103, FR-1302, FR-1403, FR-1501, FR-1601, B
 
 Affects: BR-07, FR-1301, FR-1405, FR-1501, FR-1601, FR-1607.
 
-### D-03. How are expenses funded by "Donation" or "Other" reported?
+### D-03 (approved). How are expenses funded by "Donation" or "Other" reported?
 
 **Why it blocks.** There are five funding sources (FR-702) but BR-11 says Total Expenses = School-Funded + Owner-Funded. Donation and Other fit neither, so either they vanish from the totals or get misclassified, and the surplus/deficit changes accordingly.
 
@@ -36,7 +38,7 @@ Affects: BR-07, FR-1301, FR-1405, FR-1501, FR-1601, FR-1607.
 
 Affects: BR-11, BR-12, FR-703, FR-1501, FR-1604, FR-1607.
 
-### D-04. How should billing treat "Once Only" and "Every Year" fees?
+### D-04 (approved). How should billing treat "Once Only" and "Every Year" fees?
 
 **Why it blocks.** Each fee item has a charge frequency (FR-403), but the billing generator is a plain "every fee line × every active pupil" (FR-1002) and never uses it. Without a rule, Admission Fees could be charged again every term.
 
@@ -48,7 +50,7 @@ Affects: BR-11, BR-12, FR-703, FR-1501, FR-1604, FR-1607.
 
 Affects: FR-403, FR-1002, FR-1005, WR-08.
 
-### D-05. Which actions need a second person's approval, and who approves?
+### D-05 (approved). Which actions need a second person's approval, and who approves?
 
 **Why it blocks.** The FRS only records an "Approved By" name on expenses (FR-706). The build brief asks for discount approvals, payment reversals and segregation of duties. Whether approval is a gate (nothing counts until approved) or just a record changes every workflow and every total.
 
@@ -67,7 +69,7 @@ The approver must be a different user from the person who entered it. The approv
 
 Affects: FR-502, FR-706, CTL-08, WR-02, WR-05, WR-09, WR-14, WR-16, WR-19.
 
-### D-06. Where do receipt numbers come from?
+### D-06 (approved). Where do receipt numbers come from?
 
 **Why it blocks.** The FRS has staff type the receipt number (FR-602) and requires it to be unique (BR-18), yet also prints several fee items under one receipt number (FR-1203). See C-01. If the school uses pre-printed receipt books, the app must accept typed numbers; otherwise it should issue them.
 
@@ -75,7 +77,7 @@ Affects: FR-502, FR-706, CTL-08, WR-02, WR-05, WR-09, WR-14, WR-16, WR-19.
 
 Affects: FR-602, FR-604, FR-1201, FR-1203, BR-18.
 
-### D-07. Payroll posting: which amount goes to Expenses, and into which term?
+### D-07 (approved). Payroll posting: which amount goes to Expenses, and into which term?
 
 **Why it blocks.** FR-908 posts "the payroll total" under Salaries, but does not say which total (basic pay, net pay, or basic plus employer NSSF). Payroll is monthly, while expenses belong to a year and term, and the FRS never gives terms start and end dates.
 
@@ -166,7 +168,7 @@ The FRS describes an Excel workbook. These changes keep its business meaning whi
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Blocking decisions D-01 to D-07 unanswered | Core finance build (thread 3) stalls or builds on guesses | Thread 2 designs for the recommended options; anything not yet confirmed is isolated behind one service so a different answer is a contained change. |
+| Approved decisions D-01 to D-07 later revisited | Rework of posted data | Each rule lives in one backend service so a later change is contained. |
 | Statutory payroll rules out of date | Wrong deductions on real payslips | Payroll ships disabled in production until G-03 is signed off; rates are effective-dated configuration. |
 | No migration path from the current workbook | Opening balances wrong at go-live | Decide G-01 early; an import with reconciliation report would be its own task. |
 | One person holding several roles | Segregation of duties can't be enforced | G-05; the app can flag self-approval attempts and require Proprietor approval instead. |
