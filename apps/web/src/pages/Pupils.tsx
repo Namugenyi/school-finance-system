@@ -4,17 +4,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, qs } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
 import { formatDate, formatDateTime, todayIso } from '../lib/format';
-import { Button, Card, DateInput, Dt, Empty, ErrorBox, Loading, Modal, Money, Notice, PageHeader, Pagination, Select, StatusBadge, TableWrap, Tabs, TextArea, TextInput } from '../components/ui';
+import { Button, Card, DateInput, Dt, Empty, ErrorBox, Loading, Modal, Money, Notice, OTHER, PageHeader, Pagination, Select, SelectWithOther, StatusBadge, TableWrap, Tabs, TextArea, TextInput, withOther } from '../components/ui';
 import type { Charge, Paged } from '../lib/types';
 
 interface Pupil {
   id: number; pupilCode: string; fullName: string; sex: string; dateOfBirth: string | null; dateJoined: string; classId: number; className: string;
   sectionName: string; status: string; guardianName: string | null; phonePrimary?: string | null; phoneAlt?: string | null; address?: string | null;
-  guardianRelationship: string | null; emergencyName?: string | null; emergencyRelationship?: string | null; emergencyPhone?: string | null; notes: string | null; dateLeft: string | null; leavingReason: string | null; contactsHidden?: boolean;
+  guardianRelationship: string | null; guardianRelationshipOther: string | null; emergencyName?: string | null; emergencyRelationship?: string | null; emergencyRelationshipOther?: string | null; emergencyPhone?: string | null; notes: string | null; dateLeft: string | null; leavingReason: string | null; leavingReasonOther: string | null; contactsHidden?: boolean;
 }
 interface PupilDetail extends Pupil {
   totals: { netDue: string; totalPaid: string; balance: string };
-  history: Array<{ id: number; eventType: string; effectiveDate: string; termLabel: string | null; className: string; sectionName: string; status: string; leavingReason: string | null; note: string | null; createdAt: string; correctedAt: string | null }>;
+  history: Array<{ id: number; eventType: string; effectiveDate: string; termLabel: string | null; className: string; sectionName: string; status: string; leavingReason: string | null; leavingReasonOther: string | null; note: string | null; createdAt: string; correctedAt: string | null }>;
 }
 
 export function PupilsPage() {
@@ -68,8 +68,8 @@ export function PupilsPage() {
   );
 }
 
-const emptyForm = { fullName: '', sex: '', dateOfBirth: '', dateJoined: todayIso(), classId: '', guardianName: '', guardianRelationship: '', phonePrimary: '', phoneAlt: '', address: '',
-  emergencyName: '', emergencyRelationship: '', emergencyPhone: '', notes: '' };
+const emptyForm = { fullName: '', sex: '', dateOfBirth: '', dateJoined: todayIso(), classId: '', guardianName: '', guardianRelationship: '', guardianRelationshipOther: '', phonePrimary: '', phoneAlt: '', address: '',
+  emergencyName: '', emergencyRelationship: '', emergencyRelationshipOther: '', emergencyPhone: '', notes: '' };
 
 export function PupilFormPage() {
   const { id } = useParams();
@@ -81,9 +81,9 @@ export function PupilFormPage() {
   const existing = useQuery({ queryKey: ['pupil', id], queryFn: () => api.get<PupilDetail>(`/pupils/${id}`), enabled: editing });
   useEffect(() => {
     const p = existing.data;
-    if (p) setForm({ fullName: p.fullName, sex: p.sex, dateOfBirth: p.dateOfBirth ?? '', dateJoined: p.dateJoined, classId: String(p.classId), guardianName: p.guardianName ?? '', guardianRelationship: p.guardianRelationship ?? '',
+    if (p) setForm({ fullName: p.fullName, sex: p.sex, dateOfBirth: p.dateOfBirth ?? '', dateJoined: p.dateJoined, classId: String(p.classId), guardianName: p.guardianName ?? '', guardianRelationship: p.guardianRelationship ?? '', guardianRelationshipOther: p.guardianRelationshipOther ?? '',
       phonePrimary: p.phonePrimary ?? '', phoneAlt: p.phoneAlt ?? '', address: p.address ?? '',
-      emergencyName: p.emergencyName ?? '', emergencyRelationship: p.emergencyRelationship ?? '', emergencyPhone: p.emergencyPhone ?? '', notes: p.notes ?? '' });
+      emergencyName: p.emergencyName ?? '', emergencyRelationship: p.emergencyRelationship ?? '', emergencyRelationshipOther: p.emergencyRelationshipOther ?? '', emergencyPhone: p.emergencyPhone ?? '', notes: p.notes ?? '' });
   }, [existing.data]);
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
   const save = useMutation({
@@ -126,7 +126,8 @@ export function PupilFormPage() {
         <Card title="Parent or guardian">
           <div className="grid gap-4 sm:grid-cols-2">
             <TextInput label="Parent / guardian name" value={form.guardianName} onChange={(e) => set('guardianName')(e.target.value)} />
-            <Select label="Guardian's relationship to pupil" value={form.guardianRelationship} onChange={(e) => set('guardianRelationship')(e.target.value)} placeholder="Choose…" options={options('RELATIONSHIP')} />
+            <SelectWithOther label="Guardian's relationship to pupil" value={form.guardianRelationship} onChange={set('guardianRelationship')} placeholder="Choose…" options={options('RELATIONSHIP')}
+              other={form.guardianRelationshipOther} onOtherChange={set('guardianRelationshipOther')} otherLabel="Guardian's relationship (please specify)" />
             <TextInput label="Primary telephone" value={form.phonePrimary} onChange={(e) => set('phonePrimary')(e.target.value)} placeholder="07XX XXX XXX or +256…" inputMode="tel" />
             <TextInput label="Alternative telephone" value={form.phoneAlt} onChange={(e) => set('phoneAlt')(e.target.value)} inputMode="tel" />
             <TextInput label="Physical address" value={form.address} onChange={(e) => set('address')(e.target.value)} className="sm:col-span-2" />
@@ -136,7 +137,8 @@ export function PupilFormPage() {
           <p className="mb-4 text-sm text-slate-600">Someone to call if the parent or guardian cannot be reached.</p>
           <div className="grid gap-4 sm:grid-cols-2">
             <TextInput label="Emergency contact name" value={form.emergencyName} onChange={(e) => set('emergencyName')(e.target.value)} />
-            <Select label="Emergency contact's relationship to pupil" value={form.emergencyRelationship} onChange={(e) => set('emergencyRelationship')(e.target.value)} placeholder="Choose…" options={options('RELATIONSHIP')} />
+            <SelectWithOther label="Emergency contact's relationship to pupil" value={form.emergencyRelationship} onChange={set('emergencyRelationship')} placeholder="Choose…" options={options('RELATIONSHIP')}
+              other={form.emergencyRelationshipOther} onOtherChange={set('emergencyRelationshipOther')} otherLabel="Emergency contact's relationship (please specify)" />
             <TextInput label="Emergency contact telephone" value={form.emergencyPhone} onChange={(e) => set('emergencyPhone')(e.target.value)} placeholder="07XX XXX XXX or +256…" inputMode="tel" />
           </div>
         </Card>
@@ -168,7 +170,7 @@ export function PupilDetailPage() {
   const payments = useQuery({ queryKey: ['payments', 'pupil', id], queryFn: () => api.get<Paged<{ id: number; receiptNo: string; paymentDate: string; total: string; method: string; items: string; reversed: boolean }>>(`/payments${qs({ pupilId: id, pageSize: 100 })}`), enabled: can('payments.view') });
   const refresh = () => void qc.invalidateQueries();
 
-  const [statusForm, setStatusForm] = useState({ status: '', effectiveDate: todayIso(), leavingReason: '', note: '' });
+  const [statusForm, setStatusForm] = useState({ status: '', effectiveDate: todayIso(), leavingReason: '', leavingReasonOther: '', note: '' });
   const [classForm, setClassForm] = useState({ classId: '', effectiveDate: todayIso(), eventType: 'PROMOTED', note: '' });
   const [histForm, setHistForm] = useState({ effectiveDate: '', note: '', reason: '' });
   const statusM = useMutation({ mutationFn: () => api.post(`/pupils/${id}/status`, { ...statusForm, leavingReason: statusForm.leavingReason || null, confirm: true }), onSuccess: () => { setModal(null); refresh(); } });
@@ -194,7 +196,7 @@ export function PupilDetailPage() {
               <>
                 <Link to={`/pupils/${p.id}/edit`}><Button variant="secondary">Edit details</Button></Link>
                 <Button variant="secondary" onClick={() => setModal('class')}>Change class</Button>
-                <Button variant="secondary" onClick={() => { setStatusForm({ status: '', effectiveDate: todayIso(), leavingReason: '', note: '' }); setModal('status'); }}>Change status</Button>
+                <Button variant="secondary" onClick={() => { setStatusForm({ status: '', effectiveDate: todayIso(), leavingReason: '', leavingReasonOther: '', note: '' }); setModal('status'); }}>Change status</Button>
               </>
             )}
           </>
@@ -204,18 +206,18 @@ export function PupilDetailPage() {
         <Card title="Details" className="lg:col-span-2">
           {(() => {
             const hidden = (v: string | null | undefined) => (p.contactsHidden ? 'Hidden for your role' : v);
-            const rel = (code: string | null | undefined) => (code ? label('RELATIONSHIP', code) : null);
+            const rel = (code: string | null | undefined, other: string | null | undefined) => (code ? withOther(label('RELATIONSHIP', code), other) : null);
             const groups: Array<[string | null, Array<[string, string | null | undefined]>]> = [
               [null, [
                 ['Sex', label('SEX', p.sex)], ['Date of birth', formatDate(p.dateOfBirth)], ['Date joined', formatDate(p.dateJoined)],
-                ...(p.dateLeft ? [['Date left', formatDate(p.dateLeft)], ['Reason for leaving', label('LEAVING_REASON', p.leavingReason)]] as Array<[string, string]> : []),
+                ...(p.dateLeft ? [['Date left', formatDate(p.dateLeft)], ['Reason for leaving', withOther(label('LEAVING_REASON', p.leavingReason), p.leavingReasonOther)]] as Array<[string, string]> : []),
               ]],
               ['Parent or guardian', [
-                ['Name', p.guardianName], ['Relationship to pupil', rel(p.guardianRelationship)],
+                ['Name', p.guardianName], ['Relationship to pupil', rel(p.guardianRelationship, p.guardianRelationshipOther)],
                 ['Primary telephone', hidden(p.phonePrimary)], ['Alternative telephone', hidden(p.phoneAlt)], ['Address', hidden(p.address)],
               ]],
               ['Emergency contact', [
-                ['Name', hidden(p.emergencyName)], ['Relationship to pupil', p.contactsHidden ? 'Hidden for your role' : rel(p.emergencyRelationship)],
+                ['Name', hidden(p.emergencyName)], ['Relationship to pupil', p.contactsHidden ? 'Hidden for your role' : rel(p.emergencyRelationship, p.emergencyRelationshipOther)],
                 ['Telephone', hidden(p.emergencyPhone)],
               ]],
               [null, [['Notes', p.notes]]],
@@ -302,7 +304,7 @@ export function PupilDetailPage() {
                       <td>{EVENT_LABEL[h.eventType] ?? h.eventType}</td>
                       <td>{h.termLabel ?? <span className="text-slate-400">Holiday</span>}</td>
                       <td>{h.className} <span className="text-xs text-slate-500">{h.sectionName}</span></td>
-                      <td><StatusBadge status={h.status} />{h.leavingReason && <span className="ml-1 text-xs text-slate-500">{label('LEAVING_REASON', h.leavingReason)}</span>}</td>
+                      <td><StatusBadge status={h.status} />{h.leavingReason && <span className="ml-1 text-xs text-slate-500">{withOther(label('LEAVING_REASON', h.leavingReason), h.leavingReasonOther)}</span>}</td>
                       <td className="whitespace-normal">{h.note}</td>
                       <td className="text-xs text-slate-500">{formatDateTime(h.createdAt)}{h.correctedAt && <span className="block">Corrected {formatDateTime(h.correctedAt)}</span>}</td>
                       {can('pupils.manage') && <td><Button variant="ghost" onClick={() => { setHistForm({ effectiveDate: h.effectiveDate, note: h.note ?? '', reason: '' }); setHistoryEdit(h); }}>Correct</Button></td>}
@@ -316,11 +318,12 @@ export function PupilDetailPage() {
       </div>
 
       <Modal open={modal === 'status'} title="Change status" onClose={() => setModal(null)}
-        footer={<><Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button><Button busy={statusM.isPending} disabled={!statusForm.status || !statusForm.effectiveDate} onClick={() => statusM.mutate()}>Confirm status change</Button></>}>
+        footer={<><Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button><Button busy={statusM.isPending} disabled={!statusForm.status || !statusForm.effectiveDate || (leaving && statusForm.leavingReason === OTHER && !statusForm.leavingReasonOther.trim())} onClick={() => statusM.mutate()}>Confirm status change</Button></>}>
         <p className="text-sm text-slate-600">Current status: <StatusBadge status={p.status} />. The change is added to the pupil’s history; nothing is overwritten. Only Active pupils are included in term billing.</p>
         <Select label="New status" value={statusForm.status} onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })} placeholder="Choose…" options={options('PUPIL_STATUS').filter((o) => o.value !== p.status)} required />
         <DateInput label="Effective date" value={statusForm.effectiveDate} onChange={(v) => setStatusForm({ ...statusForm, effectiveDate: v })} required />
-        {leaving && <Select label="Reason for leaving" value={statusForm.leavingReason} onChange={(e) => setStatusForm({ ...statusForm, leavingReason: e.target.value })} placeholder="Choose…" options={options('LEAVING_REASON')} required />}
+        {leaving && <SelectWithOther label="Reason for leaving" value={statusForm.leavingReason} onChange={(v) => setStatusForm({ ...statusForm, leavingReason: v })} placeholder="Choose…" options={options('LEAVING_REASON')} required
+          other={statusForm.leavingReasonOther} onOtherChange={(v) => setStatusForm({ ...statusForm, leavingReasonOther: v })} otherLabel="Reason for leaving (please specify)" />}
         <TextArea label="Note" value={statusForm.note} onChange={(v) => setStatusForm({ ...statusForm, note: v })} rows={2} />
         <ErrorBox error={statusM.error} />
       </Modal>

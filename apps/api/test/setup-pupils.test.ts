@@ -138,6 +138,39 @@ describe('parent / guardian and emergency contact', () => {
   });
 });
 
+describe('"Other" asks for the details that are not on the list', () => {
+  it('needs and keeps the typed relationship, and clears it when another choice is made', async () => {
+    const base = { fullName: 'Other Relation', sex: 'FEMALE', dateJoined: '2026-01-20', classId: w.classes.p1 };
+    expect((await bursar.post('/api/pupils', { ...base, guardianRelationship: 'OTHER' })).status).toBe(400);
+    expect((await bursar.post('/api/pupils', { ...base, emergencyRelationship: 'OTHER', emergencyRelationshipOther: '  ' })).status).toBe(400);
+    const p = (await bursar.post('/api/pupils', { ...base, guardianRelationship: 'OTHER', guardianRelationshipOther: 'Step-mother', emergencyRelationship: 'OTHER', emergencyRelationshipOther: 'Neighbour' })).body;
+    expect(p).toMatchObject({ guardianRelationshipOther: 'Step-mother', emergencyRelationshipOther: 'Neighbour' });
+    const changed = (await bursar.patch(`/api/pupils/${p.id}`, { guardianRelationship: 'MOTHER' })).body;
+    expect(changed).toMatchObject({ guardianRelationship: 'MOTHER', guardianRelationshipOther: null, emergencyRelationshipOther: 'Neighbour' });
+    // Text typed for a non-Other choice is not stored.
+    const ignored = (await bursar.post('/api/pupils', { ...base, guardianRelationship: 'FATHER', guardianRelationshipOther: 'stray text' })).body;
+    expect(ignored.guardianRelationshipOther).toBeNull();
+  });
+
+  it('needs the typed reason when a pupil leaves for an "Other" reason', async () => {
+    const p = await createPupil(bursar, w, 'Leaves Other', w.classes.p1);
+    const status = { status: 'WITHDRAWN', effectiveDate: '2026-03-01', leavingReason: 'OTHER', confirm: true };
+    expect((await bursar.post(`/api/pupils/${p.id}/status`, status)).status).toBe(400);
+    expect((await bursar.post(`/api/pupils/${p.id}/status`, { ...status, leavingReasonOther: 'Family moved abroad' })).status).toBe(200);
+    const got = (await bursar.get(`/api/pupils/${p.id}`)).body;
+    expect(got.leavingReasonOther).toBe('Family moved abroad');
+    expect(got.history[0].leavingReasonOther).toBe('Family moved abroad');
+  });
+
+  it('needs the typed funding source when an expense is funded by "Other"', async () => {
+    const e = { expenseDate: '2026-03-10', termId: w.terms.t1, category: 'RENT', description: 'Rent payment', amount: '1000', method: 'CASH', fundingSource: 'OTHER' };
+    expect((await bursar.post('/api/expenses', e)).status).toBe(400);
+    const ok = await bursar.post('/api/expenses', { ...e, fundingSourceOther: 'Parents association' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.fundingSourceOther).toBe('Parents association');
+  });
+});
+
 describe('pupil history (FR-301 to FR-303)', () => {
   it('keeps every placement when a pupil is promoted', async () => {
     const p = await createPupil(bursar, w, 'History Pupil');

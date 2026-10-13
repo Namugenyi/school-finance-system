@@ -12,7 +12,7 @@ import { sendCsv, wantsCsv } from '../lib/csv';
 import { currentUser, hasPermission, requirePermission } from '../auth/session';
 import { assertDifferentApprover, fundingBucket } from '../finance/policies';
 import { checkTermOpen } from '../finance/periods';
-import { assertRefCode, termLabel } from './setup';
+import { assertRefCode, otherText, termLabel } from './setup';
 import { moneyInput } from './fees';
 
 export const router = Router();
@@ -29,6 +29,7 @@ const expenseBody = z.object({
   method: z.string(),
   invoiceRef: text(100),
   fundingSource: z.string(),
+  fundingSourceOther: text(200),
 });
 
 type ExpenseRow = Prisma.ExpenseGetPayload<{ include: { term: { include: { academicYear: true } }; payrollRun: true; contribution: true } }>;
@@ -47,6 +48,7 @@ function serialize(e: ExpenseRow, names: Map<number, string>, userId?: number, c
     method: e.method,
     invoiceRef: e.invoiceRef,
     fundingSource: e.fundingSource,
+    fundingSourceOther: e.fundingSourceOther,
     fundingBucket: fundingBucket(e.fundingSource),
     status: e.status,
     enteredById: e.enteredById,
@@ -103,7 +105,7 @@ router.get(
     const rows = items.map((e) => serialize(e, nameMap, user?.id, hasPermission(user, 'expenses.approve')));
     if (csv) {
       sendCsv(res, 'expenses.csv', ['Expense ID', 'Date', 'Term', 'Category', 'Description', 'Amount', 'Supplier', 'Method', 'Invoice', 'Funding source', 'Status', 'Approved by'],
-        rows.map((r) => [r.expenseNo, displayDate(new Date(r.expenseDate!)), r.termLabel, r.category, r.description, r.amount, r.supplier, r.method, r.invoiceRef, r.fundingSource, r.status, r.approvedByName]));
+        rows.map((r) => [r.expenseNo, displayDate(new Date(r.expenseDate!)), r.termLabel, r.category, r.description, r.amount, r.supplier, r.method, r.invoiceRef, r.fundingSourceOther ? `${r.fundingSource}: ${r.fundingSourceOther}` : r.fundingSource, r.status, r.approvedByName]));
       return;
     }
     return { items: rows, total, page, pageSize, approvedTotal: money(approvedSum._sum.amount) };
@@ -157,7 +159,7 @@ router.post(
         data: {
           expenseNo: await nextExpenseNo(tx), expenseDate: date, termId: body.termId, category: body.category, description: body.description,
           amount: dec(body.amount), supplier: body.supplier ?? null, method: body.method, invoiceRef: body.invoiceRef ?? null,
-          fundingSource: body.fundingSource, enteredById: user.id, postClose,
+          fundingSource: body.fundingSource, fundingSourceOther: otherText(body.fundingSource, body.fundingSourceOther, 'Funding source'), enteredById: user.id, postClose,
         },
         include,
       });
@@ -189,6 +191,7 @@ router.patch(
       data: {
         expenseDate: date, termId: body.termId, category: body.category, description: body.description, amount: dec(body.amount),
         supplier: body.supplier ?? null, method: body.method, invoiceRef: body.invoiceRef ?? null, fundingSource: body.fundingSource,
+        fundingSourceOther: otherText(body.fundingSource, body.fundingSourceOther, 'Funding source'),
       },
       include,
     });

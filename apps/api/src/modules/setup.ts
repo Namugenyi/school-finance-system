@@ -18,6 +18,18 @@ export async function assertRefCode(db: Db, listCode: string, code: string, fiel
   return value;
 }
 
+/** Value code that asks for typed details instead of a list entry. */
+export const OTHER_CODE = 'OTHER';
+
+/** The typed text kept when "Other" is chosen; required then, dropped for any other choice. */
+export function otherText(code: string | null | undefined, text: string | null | undefined, field: string): string | null {
+  if (code !== OTHER_CODE) return null;
+  const t = text?.trim();
+  if (!t) throw badRequest(`${field}: you chose "Other", so type what it is`);
+  if (t.length > 120) throw badRequest(`${field}: keep the "Other" details under 120 characters`);
+  return t;
+}
+
 export async function getSettings(db: Db) {
   const s = await db.schoolSettings.findUnique({ where: { id: 1 } });
   if (!s) throw new Error('School settings are missing. Run the database seed.');

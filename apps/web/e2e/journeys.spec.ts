@@ -33,11 +33,13 @@ test('a bursar registers a pupil and gets an automatic pupil ID', async ({ brows
   await page.getByLabel('Parent / guardian name').fill('Test Guardian');
   await page.getByLabel("Guardian's relationship to pupil").selectOption({ label: 'Mother' });
   await page.getByLabel('Emergency contact name').fill('Test Aunt');
-  await page.getByLabel("Emergency contact's relationship to pupil").selectOption({ label: 'Aunt / Uncle' });
+  await page.getByLabel("Emergency contact's relationship to pupil").selectOption({ label: 'Other' });
+  await page.getByLabel("Emergency contact's relationship (please specify)").fill('Neighbour');
   await page.getByLabel('Emergency contact telephone').fill('0782000000');
   await page.getByRole('button', { name: 'Register pupil' }).click();
   await expect(page.getByRole('heading', { name: PUPIL })).toBeVisible();
   await expect(page.getByText('STJA-2026-0001').first()).toBeVisible();
+  await expect(page.getByText('Other: Neighbour')).toBeVisible();
 });
 
 test('fees are entered for P1 in Term 3', async ({ browser }) => {

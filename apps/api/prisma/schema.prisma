@@ -199,32 +199,36 @@ model SchoolClass {
 // ───────────────────────────── Pupils (M03) ─────────────────────────────
 
 model Pupil {
-  id                    Int         @id @default(autoincrement())
-  pupilCode             String      @unique
-  fullName              String
-  sex                   String
-  dateOfBirth           DateTime?   @db.Date
-  dateJoined            DateTime    @db.Date
-  classId               Int
-  schoolClass           SchoolClass @relation(fields: [classId], references: [id], onDelete: Restrict)
-  status                String      @default("ACTIVE")
+  id                         Int         @id @default(autoincrement())
+  pupilCode                  String      @unique
+  fullName                   String
+  sex                        String
+  dateOfBirth                DateTime?   @db.Date
+  dateJoined                 DateTime    @db.Date
+  classId                    Int
+  schoolClass                SchoolClass @relation(fields: [classId], references: [id], onDelete: Restrict)
+  status                     String      @default("ACTIVE")
   // Parent / guardian. Relationship codes come from the RELATIONSHIP reference list.
-  guardianName          String?
-  guardianRelationship  String?
-  phonePrimary          String?
-  phoneAlt              String?
-  address               String?
+  guardianName               String?
+  guardianRelationship       String?
+  // Free text typed when "Other" is chosen in a dropdown.
+  guardianRelationshipOther  String?
+  phonePrimary               String?
+  phoneAlt                   String?
+  address                    String?
   // Emergency contact, kept apart from the parent / guardian.
-  emergencyName         String?
-  emergencyRelationship String?
-  emergencyPhone        String?
-  notes                 String?
-  dateLeft              DateTime?   @db.Date
-  leavingReason         String?
-  createdAt             DateTime    @default(now())
-  createdById           Int?
-  updatedAt             DateTime    @updatedAt
-  updatedById           Int?
+  emergencyName              String?
+  emergencyRelationship      String?
+  emergencyRelationshipOther String?
+  emergencyPhone             String?
+  notes                      String?
+  dateLeft                   DateTime?   @db.Date
+  leavingReason              String?
+  leavingReasonOther         String?
+  createdAt                  DateTime    @default(now())
+  createdById                Int?
+  updatedAt                  DateTime    @updatedAt
+  updatedById                Int?
 
   history  PupilHistory[]
   charges  Charge[]
@@ -236,23 +240,24 @@ model Pupil {
 }
 
 model PupilHistory {
-  id            Int           @id @default(autoincrement())
-  pupilId       Int
-  pupil         Pupil         @relation(fields: [pupilId], references: [id], onDelete: Restrict)
+  id                 Int           @id @default(autoincrement())
+  pupilId            Int
+  pupil              Pupil         @relation(fields: [pupilId], references: [id], onDelete: Restrict)
   // ENROLLED | PROMOTED | CLASS_CHANGE | STATUS_CHANGE
-  eventType     String
-  effectiveDate DateTime      @db.Date
-  termId        Int?
-  term          AcademicTerm? @relation(fields: [termId], references: [id], onDelete: Restrict)
-  classId       Int
-  schoolClass   SchoolClass   @relation(fields: [classId], references: [id], onDelete: Restrict)
-  status        String
-  leavingReason String?
-  note          String?
-  createdAt     DateTime      @default(now())
-  createdById   Int?
-  correctedAt   DateTime?
-  correctedById Int?
+  eventType          String
+  effectiveDate      DateTime      @db.Date
+  termId             Int?
+  term               AcademicTerm? @relation(fields: [termId], references: [id], onDelete: Restrict)
+  classId            Int
+  schoolClass        SchoolClass   @relation(fields: [classId], references: [id], onDelete: Restrict)
+  status             String
+  leavingReason      String?
+  leavingReasonOther String?
+  note               String?
+  createdAt          DateTime      @default(now())
+  createdById        Int?
+  correctedAt        DateTime?
+  correctedById      Int?
 
   @@index([pupilId, effectiveDate])
 }
@@ -426,29 +431,30 @@ model PaymentReversal {
 // ───────────────────────────── Expenses and owner funds (M11, M12) ─────────────────────────────
 
 model Expense {
-  id             Int                @id @default(autoincrement())
-  expenseNo      String             @unique
-  expenseDate    DateTime           @db.Date
-  termId         Int
-  term           AcademicTerm       @relation(fields: [termId], references: [id], onDelete: Restrict)
-  category       String
-  description    String
-  amount         Decimal            @db.Decimal(14, 2)
-  supplier       String?
-  method         String
-  invoiceRef     String?
-  fundingSource  String
+  id                 Int                @id @default(autoincrement())
+  expenseNo          String             @unique
+  expenseDate        DateTime           @db.Date
+  termId             Int
+  term               AcademicTerm       @relation(fields: [termId], references: [id], onDelete: Restrict)
+  category           String
+  description        String
+  amount             Decimal            @db.Decimal(14, 2)
+  supplier           String?
+  method             String
+  invoiceRef         String?
+  fundingSource      String
+  fundingSourceOther String?
   // PENDING | APPROVED | REJECTED (D-05)
-  status         String             @default("PENDING")
-  enteredById    Int
-  enteredAt      DateTime           @default(now())
-  approvedById   Int?
-  approvedByName String?
-  decidedAt      DateTime?
-  decisionNote   String?
-  postClose      Boolean            @default(false)
-  payrollRun     PayrollRun?
-  contribution   OwnerContribution?
+  status             String             @default("PENDING")
+  enteredById        Int
+  enteredAt          DateTime           @default(now())
+  approvedById       Int?
+  approvedByName     String?
+  decidedAt          DateTime?
+  decisionNote       String?
+  postClose          Boolean            @default(false)
+  payrollRun         PayrollRun?
+  contribution       OwnerContribution?
 
   @@index([termId])
   @@index([status])

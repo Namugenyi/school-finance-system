@@ -60,6 +60,30 @@ export function Select({ label, options, placeholder, error, hint, required, cla
   return <Field label={label} error={error} hint={hint} required={required} className={className}>{(id) => select(id)}</Field>;
 }
 
+/** Code of the list value that asks the user to type what isn't on the list. */
+export const OTHER = 'OTHER';
+
+/** A list label plus the typed details when "Other" was chosen, e.g. "Other: Neighbour". */
+export const withOther = (text: string | null | undefined, other: string | null | undefined) => (other ? `${text ?? 'Other'}: ${other}` : text);
+
+/**
+ * A dropdown that, when "Other" is picked, shows a required box for what isn't on the list.
+ * In the two-column forms the box takes its own full-width row under the dropdown.
+ */
+export function SelectWithOther({ other, onOtherChange, otherLabel, onChange, value, ...rest }: Omit<Parameters<typeof Select>[0], 'onChange' | 'value'> & {
+  value: string; onChange: (v: string) => void; other: string; onOtherChange: (v: string) => void; otherLabel: string;
+}) {
+  return (
+    <>
+      <Select value={value} onChange={(e) => onChange(e.target.value)} {...rest} />
+      {value === OTHER && (
+        <TextInput label={otherLabel} value={other} onChange={(e) => onOtherChange(e.target.value)} required maxLength={120} autoFocus
+          placeholder="Type what isn’t on the list" className="sm:col-span-2" />
+      )}
+    </>
+  );
+}
+
 /** Date entry shown and typed as DD/MM/YYYY (FR-606); the value is YYYY-MM-DD. */
 export function DateInput({ label, value, onChange, required, error, hint, className, disabled }: { label: string; value: string; onChange: (iso: string) => void; required?: boolean; error?: string | null; hint?: ReactNode; className?: string; disabled?: boolean }) {
   const [text, setText] = useState(formatDate(value));

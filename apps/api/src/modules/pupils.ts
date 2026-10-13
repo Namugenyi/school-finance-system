@@ -9,7 +9,7 @@ import { isoDate, parseDate, todayKampala } from '../lib/dates';
 import { nextPupilCode } from '../lib/ids';
 import { money } from '../lib/money';
 import { currentUser, hasPermission, requirePermission } from '../auth/session';
-import { assertRefCode, getSettings } from './setup';
+import { assertRefCode, getSettings, otherText } from './setup';
 
 export const router = Router();
 
@@ -33,11 +33,13 @@ const pupilFields = {
   dateOfBirth: z.string().nullable().optional(),
   guardianName: optionalText(120),
   guardianRelationship: optionalText(40),
+  guardianRelationshipOther: optionalText(200),
   phonePrimary: phone,
   phoneAlt: phone,
   address: optionalText(300),
   emergencyName: optionalText(120),
   emergencyRelationship: optionalText(40),
+  emergencyRelationshipOther: optionalText(200),
   emergencyPhone: phone,
   notes: optionalText(1000),
 };
@@ -68,13 +70,14 @@ function serializePupil(p: Prisma.PupilGetPayload<{ include: { schoolClass: { in
     status: p.status,
     dateLeft: isoDate(p.dateLeft),
     leavingReason: p.leavingReason,
+    leavingReasonOther: p.leavingReasonOther,
     notes: p.notes,
     ...(showContacts
       ? {
-          guardianName: p.guardianName, guardianRelationship: p.guardianRelationship, phonePrimary: p.phonePrimary, phoneAlt: p.phoneAlt, address: p.address,
-          emergencyName: p.emergencyName, emergencyRelationship: p.emergencyRelationship, emergencyPhone: p.emergencyPhone,
+          guardianName: p.guardianName, guardianRelationship: p.guardianRelationship, guardianRelationshipOther: p.guardianRelationshipOther, phonePrimary: p.phonePrimary, phoneAlt: p.phoneAlt, address: p.address,
+          emergencyName: p.emergencyName, emergencyRelationship: p.emergencyRelationship, emergencyRelationshipOther: p.emergencyRelationshipOther, emergencyPhone: p.emergencyPhone,
         }
-      : { guardianName: p.guardianName, guardianRelationship: p.guardianRelationship, contactsHidden: true }),
+      : { guardianName: p.guardianName, guardianRelationship: p.guardianRelationship, guardianRelationshipOther: p.guardianRelationshipOther, contactsHidden: true }),
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   };
@@ -139,6 +142,7 @@ router.get(
         sectionName: h.schoolClass.section.name,
         status: h.status,
         leavingReason: h.leavingReason,
+        leavingReasonOther: h.leavingReasonOther,
         note: h.note,
         createdAt: h.createdAt,
         correctedAt: h.correctedAt,
@@ -177,11 +181,13 @@ router.post(
           status: 'ACTIVE',
           guardianName: body.guardianName ?? null,
           guardianRelationship: body.guardianRelationship ?? null,
+          guardianRelationshipOther: otherText(body.guardianRelationship, body.guardianRelationshipOther, "Guardian's relationship"),
           phonePrimary: body.phonePrimary ?? null,
           phoneAlt: body.phoneAlt ?? null,
           address: body.address ?? null,
           emergencyName: body.emergencyName ?? null,
           emergencyRelationship: body.emergencyRelationship ?? null,
+          emergencyRelationshipOther: otherText(body.emergencyRelationship, body.emergencyRelationshipOther, "Emergency contact's relationship"),
           emergencyPhone: body.emergencyPhone ?? null,
           notes: body.notes ?? null,
           createdById: user.id,
@@ -218,9 +224,21 @@ router.patch(
     await assertRelationships(prisma, body);
     const dateJoined = body.dateJoined ? parseDate(body.dateJoined, 'Date joined') : undefined;
     const dateOfBirth = body.dateOfBirth === undefined ? undefined : body.dateOfBirth ? parseDate(body.dateOfBirth, 'Date of birth') : null;
+    // "Other" details follow the relationship they explain: kept, required or cleared.
+    const others: Prisma.PupilUpdateInput = {};
+    if (body.guardianRelationship !== undefined || body.guardianRelationshipOther !== undefined) {
+      others.guardianRelationshipOther = otherText(
+        body.guardianRelationship !== undefined ? body.guardianRelationship : before.guardianRelationship,
+        body.guardianRelationshipOther !== undefined ? body.guardianRelationshipOther : before.guardianRelationshipOther, "Guardian's relationship");
+    }
+    if (body.emergencyRelationship !== undefined || body.emergencyRelationshipOther !== undefined) {
+      others.emergencyRelationshipOther = otherText(
+        body.emergencyRelationship !== undefined ? body.emergencyRelationship : before.emergencyRelationship,
+        body.emergencyRelationshipOther !== undefined ? body.emergencyRelationshipOther : before.emergencyRelationshipOther, "Emergency contact's relationship");
+    }
     const after = await prisma.pupil.update({
       where: { id },
-      data: { ...body, dateJoined, dateOfBirth, updatedById: user.id },
+      data: { ...body, ...others, dateJoined, dateOfBirth, updatedById: user.id },
       include: pupilInclude,
     });
     await audit(prisma, user, 'pupil.update', 'Pupil', id, { before, after });
@@ -238,6 +256,7 @@ router.post(
         status: z.string(),
         effectiveDate: z.string(),
         leavingReason: z.string().nullable().optional(),
+        leavingReasonOther: optionalText(200),
         note: optionalText(500),
         confirm: z.literal(true, { errorMap: () => ({ message: 'Confirm the status change' }) }),
       }),
@@ -253,6 +272,7 @@ router.post(
     const leaving = LEAVING_STATUSES.includes(body.status);
     if (leaving && !body.leavingReason) throw badRequest('Give a reason for leaving');
     if (leaving && body.leavingReason) await assertRefCode(prisma, 'LEAVING_REASON', body.leavingReason, 'Reason for leaving');
+    const leavingReasonOther = leaving ? otherText(body.leavingReason, body.leavingReasonOther, 'Reason for leaving') : null;
 
     return prisma.$transaction(async (tx) => {
       const term = await termForDate(tx, effectiveDate);
@@ -262,13 +282,14 @@ router.post(
           status: body.status,
           dateLeft: leaving ? effectiveDate : null,
           leavingReason: leaving ? body.leavingReason : null,
+          leavingReasonOther,
           updatedById: user.id,
         },
       });
       await tx.pupilHistory.create({
         data: {
           pupilId: id, eventType: 'STATUS_CHANGE', effectiveDate, termId: term?.id ?? null, classId: pupil.classId,
-          status: body.status, leavingReason: leaving ? body.leavingReason : null, note: body.note ?? null, createdById: user.id,
+          status: body.status, leavingReason: leaving ? body.leavingReason : null, leavingReasonOther, note: body.note ?? null, createdById: user.id,
         },
       });
       await audit(tx, user, 'pupil.status', 'Pupil', id, { before: { status: pupil.status }, after: { status: after.status, effectiveDate: body.effectiveDate }, reason: body.note });
@@ -344,7 +365,7 @@ router.patch(
     const id = idParam(req);
     const historyId = idParam(req, 'historyId');
     const body = parse(
-      z.object({ effectiveDate: z.string().optional(), note: optionalText(500), leavingReason: z.string().nullable().optional(), reason: z.string().trim().min(5, 'Explain why this history entry is being corrected') }),
+      z.object({ effectiveDate: z.string().optional(), note: optionalText(500), leavingReason: z.string().nullable().optional(), leavingReasonOther: optionalText(200), reason: z.string().trim().min(5, 'Explain why this history entry is being corrected') }),
       req.body,
     );
     const user = currentUser(req);
@@ -361,6 +382,10 @@ router.patch(
           termId: term?.id ?? null,
           note: body.note === undefined ? before.note : body.note,
           leavingReason: body.leavingReason === undefined ? before.leavingReason : body.leavingReason,
+          leavingReasonOther: body.leavingReason === undefined && body.leavingReasonOther === undefined
+            ? before.leavingReasonOther
+            : otherText(body.leavingReason === undefined ? before.leavingReason : body.leavingReason,
+              body.leavingReasonOther === undefined ? before.leavingReasonOther : body.leavingReasonOther, 'Reason for leaving'),
           correctedAt: new Date(),
           correctedById: user.id,
         },

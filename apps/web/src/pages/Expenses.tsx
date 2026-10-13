@@ -4,27 +4,27 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, downloadUrl, qs } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
 import { cleanAmount, formatDateTime, todayIso } from '../lib/format';
-import { Button, Card, cx, DateInput, DecisionButtons, Dt, Empty, ErrorBox, Loading, Modal, Money, MoneyInput, Notice, PageHeader, Pagination, Select, StatusBadge, TableWrap, TextInput } from '../components/ui';
+import { Button, Card, cx, DateInput, DecisionButtons, Dt, Empty, ErrorBox, Loading, Modal, Money, MoneyInput, Notice, PageHeader, Pagination, Select, SelectWithOther, StatusBadge, TableWrap, TextInput, withOther } from '../components/ui';
 import { TermSelect, scopeParams } from '../components/TermSelect';
 import type { Paged } from '../lib/types';
 
 export interface Expense {
   id: number; expenseNo: string; expenseDate: string; termId: number; termLabel: string; category: string; description: string; amount: string;
-  supplier: string | null; method: string; invoiceRef: string | null; fundingSource: string; fundingBucket: string; status: string;
+  supplier: string | null; method: string; invoiceRef: string | null; fundingSource: string; fundingSourceOther: string | null; fundingBucket: string; status: string;
   enteredById: number; enteredBy: string | null; enteredAt: string; approvedByName: string | null; decidedAt: string | null; decisionNote: string | null;
   postClose: boolean; payrollRunId: number | null; contributionId: number | null; canDecide: boolean; warnings?: string[];
 }
 
 const BUCKET: Record<string, string> = { SCHOOL: 'School funds', OWNER: 'Owner funds', OTHER: 'Other funding' };
 
-type Form = { expenseDate: string; termId: string; category: string; description: string; amount: string; supplier: string; method: string; invoiceRef: string; fundingSource: string };
+type Form = { expenseDate: string; termId: string; category: string; description: string; amount: string; supplier: string; method: string; invoiceRef: string; fundingSource: string; fundingSourceOther: string };
 
 function ExpenseForm({ initial, onDone, onCancel }: { initial?: Expense; onDone: (e: Expense) => void; onCancel: () => void }) {
   const { lookups, options } = useLookups();
   const [f, setF] = useState<Form>(() => initial ? {
     expenseDate: initial.expenseDate, termId: String(initial.termId), category: initial.category, description: initial.description, amount: initial.amount,
-    supplier: initial.supplier ?? '', method: initial.method, invoiceRef: initial.invoiceRef ?? '', fundingSource: initial.fundingSource,
-  } : { expenseDate: todayIso(), termId: String(lookups?.currentTermId ?? ''), category: '', description: '', amount: '', supplier: '', method: '', invoiceRef: '', fundingSource: 'SCHOOL_FUNDS' });
+    supplier: initial.supplier ?? '', method: initial.method, invoiceRef: initial.invoiceRef ?? '', fundingSource: initial.fundingSource, fundingSourceOther: initial.fundingSourceOther ?? '',
+  } : { expenseDate: todayIso(), termId: String(lookups?.currentTermId ?? ''), category: '', description: '', amount: '', supplier: '', method: '', invoiceRef: '', fundingSource: 'SCHOOL_FUNDS', fundingSourceOther: '' });
   const set = (k: keyof Form) => (v: string) => setF((x) => ({ ...x, [k]: v }));
   // Suggest the term from the date (FR-704); the user can still change it.
   useEffect(() => {
@@ -50,13 +50,14 @@ function ExpenseForm({ initial, onDone, onCancel }: { initial?: Expense; onDone:
         <TextInput label="Supplier / payee" value={f.supplier} onChange={(e) => set('supplier')(e.target.value)} />
         <TextInput label="Invoice or receipt number" value={f.invoiceRef} onChange={(e) => set('invoiceRef')(e.target.value)} />
         <Select label="Paid by" value={f.method} onChange={(e) => set('method')(e.target.value)} placeholder="Choose…" options={options('PAYMENT_METHOD')} required />
-        <Select label="Funding source" value={f.fundingSource} onChange={(e) => set('fundingSource')(e.target.value)} options={options('FUNDING_SOURCE')} required hint="Where the money came from. Owner-funded spending is not taken from school income." />
+        <SelectWithOther label="Funding source" value={f.fundingSource} onChange={set('fundingSource')} options={options('FUNDING_SOURCE')} required hint="Where the money came from. Owner-funded spending is not taken from school income."
+          other={f.fundingSourceOther} onOtherChange={set('fundingSourceOther')} otherLabel="Funding source (please specify)" />
       </div>
       {f.category === 'SALARIES' && <Notice tone="warning">Salaries normally come from a payroll run. Only enter them here if they are not in payroll.</Notice>}
       <ErrorBox error={save.error} />
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-        <Button busy={save.isPending} disabled={!f.category || !f.method || !f.amount || !f.termId || !f.expenseDate || f.description.trim().length < 3} onClick={() => save.mutate()}>{initial ? 'Save changes' : 'Save for approval'}</Button>
+        <Button busy={save.isPending} disabled={!f.category || !f.method || !f.amount || !f.termId || !f.expenseDate || f.description.trim().length < 3 || (f.fundingSource === 'OTHER' && !f.fundingSourceOther.trim())} onClick={() => save.mutate()}>{initial ? 'Save changes' : 'Save for approval'}</Button>
       </div>
     </div>
   );
@@ -107,7 +108,7 @@ export function ExpensesPage() {
                     <td>{label('EXPENSE_CATEGORY', e.category)}</td>
                     <td className="max-w-xs whitespace-normal">{e.description}</td>
                     <td>{e.supplier}</td>
-                    <td className="text-xs">{label('FUNDING_SOURCE', e.fundingSource)}{e.fundingBucket === 'OWNER'
+                    <td className="max-w-[12rem] whitespace-normal text-xs">{withOther(label('FUNDING_SOURCE', e.fundingSource), e.fundingSourceOther)}{e.fundingBucket === 'OWNER'
                       ? <span className="mt-0.5 block w-fit rounded bg-violet-100 px-1.5 py-0.5 font-semibold text-violet-800">Owner</span>
                       : <span className="block text-slate-500">{BUCKET[e.fundingBucket]}</span>}</td>
                     <td><StatusBadge status={e.status} /></td>
@@ -151,7 +152,7 @@ export function ExpenseDetailPage() {
             ['Amount', <span key="a" className="text-lg font-semibold">UGX <Money value={e.amount} /></span>],
             ['Date', <Dt key="d" value={e.expenseDate} />], ['Term', e.termLabel], ['Category', label('EXPENSE_CATEGORY', e.category)],
             ['Supplier / payee', e.supplier], ['Invoice or receipt', e.invoiceRef], ['Paid by', label('PAYMENT_METHOD', e.method)],
-            ['Funding source', `${label('FUNDING_SOURCE', e.fundingSource)} (${BUCKET[e.fundingBucket]})`],
+            ['Funding source', `${withOther(label('FUNDING_SOURCE', e.fundingSource), e.fundingSourceOther)} (${BUCKET[e.fundingBucket]})`],
             ['Entered by', `${e.enteredBy ?? ''} · ${formatDateTime(e.enteredAt)}`],
             ['Decision', e.approvedByName ? `${e.approvedByName} · ${formatDateTime(e.decidedAt)}${e.decisionNote ? ` · ${e.decisionNote}` : ''}` : null],
             ...(e.postClose ? [['Note', 'Entered after the term was closed']] : []),
