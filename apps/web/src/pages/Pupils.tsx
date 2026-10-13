@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, qs } from '../lib/api';
@@ -68,6 +68,25 @@ export function PupilsPage() {
   );
 }
 
+/** A-12: Ugandan numbers are 0 or +256 followed by 9 digits; spaces and dashes are ignored (same rule as the server). */
+export function phoneProblem(v: string): string | null {
+  const digits = v.replace(/[\s-]/g, '');
+  if (!digits) return null;
+  return /^(\+256|0)\d{9}$/.test(digits) ? null : 'Enter a Ugandan number: 0 or +256 followed by 9 digits, for example 0772 123 456';
+}
+
+/** Tidy a phone number on leaving the field: "0772123456" -> "0772 123 456", "256772123456" -> "+256 772 123 456". */
+export function tidyPhone(v: string): string {
+  let d = v.replace(/[\s-]/g, '');
+  if (/^256\d{9}$/.test(d)) d = `+${d}`;
+  if (/^[3-9]\d{8}$/.test(d)) d = `0${d}`;
+  if (/^0\d{9}$/.test(d)) return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`;
+  if (/^\+256\d{9}$/.test(d)) return `+256 ${d.slice(4, 7)} ${d.slice(7, 10)} ${d.slice(10)}`;
+  return v.trim();
+}
+
+const PHONE_HINT = 'For example 0772 123 456 or +256 772 123 456';
+
 const emptyForm = { fullName: '', sex: '', dateOfBirth: '', dateJoined: todayIso(), classId: '', guardianName: '', guardianRelationship: '', guardianRelationshipOther: '', phonePrimary: '', phoneAlt: '', address: '',
   emergencyName: '', emergencyRelationship: '', emergencyRelationshipOther: '', emergencyPhone: '', notes: '' };
 
@@ -78,6 +97,9 @@ export function PupilFormPage() {
   const qc = useQueryClient();
   const { lookups, options } = useLookups();
   const [form, setForm] = useState(emptyForm);
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof emptyForm, string>>>({});
+  const [badDates, setBadDates] = useState({ dateOfBirth: false, dateJoined: false });
+  const summaryRef = useRef<HTMLDivElement>(null);
   const existing = useQuery({ queryKey: ['pupil', id], queryFn: () => api.get<PupilDetail>(`/pupils/${id}`), enabled: editing });
   useEffect(() => {
     const p = existing.data;
@@ -85,7 +107,33 @@ export function PupilFormPage() {
       phonePrimary: p.phonePrimary ?? '', phoneAlt: p.phoneAlt ?? '', address: p.address ?? '',
       emergencyName: p.emergencyName ?? '', emergencyRelationship: p.emergencyRelationship ?? '', emergencyRelationshipOther: p.emergencyRelationshipOther ?? '', emergencyPhone: p.emergencyPhone ?? '', notes: p.notes ?? '' });
   }, [existing.data]);
-  const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: keyof typeof form) => (v: string) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrors((e) => (e[k] ? { ...e, [k]: undefined } : e));
+  };
+  const today = todayIso();
+  const classes = (lookups?.classes ?? []).filter((c) => c.active);
+  const chosenClass = classes.find((c) => String(c.id) === form.classId);
+
+  /** The same rules the server applies, checked first so problems show beside the field. */
+  const validate = () => {
+    const e: Partial<Record<keyof typeof emptyForm, string>> = {};
+    if (form.fullName.trim().length < 2) e.fullName = 'Enter the pupil’s full name';
+    if (!form.sex) e.sex = 'Choose the pupil’s sex';
+    if (badDates.dateJoined) e.dateJoined = 'Enter the date as DD/MM/YYYY, for example 05/02/2026';
+    else if (!form.dateJoined) e.dateJoined = 'Enter the date the pupil joined';
+    else if (form.dateJoined > today) e.dateJoined = 'Date joined cannot be in the future';
+    if (badDates.dateOfBirth) e.dateOfBirth = 'Enter the date as DD/MM/YYYY, for example 05/02/2020';
+    else if (form.dateOfBirth && form.dateJoined && form.dateOfBirth >= form.dateJoined) e.dateOfBirth = 'Date of birth must be before the date joined';
+    if (!editing && !form.classId) e.classId = 'Choose a class';
+    if (form.guardianRelationship === OTHER && !form.guardianRelationshipOther.trim()) e.guardianRelationshipOther = 'Type the relationship';
+    if (form.emergencyRelationship === OTHER && !form.emergencyRelationshipOther.trim()) e.emergencyRelationshipOther = 'Type the relationship';
+    for (const k of ['phonePrimary', 'phoneAlt', 'emergencyPhone'] as const) {
+      const problem = phoneProblem(form[k]);
+      if (problem) e[k] = problem;
+    }
+    return e;
+  };
   const save = useMutation({
     mutationFn: () => {
       const body = { ...form, dateOfBirth: form.dateOfBirth || null };
@@ -104,51 +152,84 @@ export function PupilFormPage() {
   });
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    const found = validate();
+    setErrors(found);
+    if (Object.values(found).some(Boolean)) {
+      requestAnimationFrame(() => summaryRef.current?.focus());
+      return;
+    }
     save.mutate();
+  };
+  const err = (k: keyof typeof emptyForm) => errors[k] ?? null;
+  const problems = Object.entries(errors).filter(([, v]) => v) as Array<[keyof typeof emptyForm, string]>;
+  const phoneProps = (k: 'phonePrimary' | 'phoneAlt' | 'emergencyPhone') => ({
+    value: form[k], type: 'tel', inputMode: 'tel' as const, autoComplete: 'off', maxLength: 20, error: err(k),
+    onChange: (e: { target: { value: string } }) => set(k)(e.target.value),
+    onBlur: () => {
+      const tidy = tidyPhone(form[k]);
+      if (tidy !== form[k]) setForm((f) => ({ ...f, [k]: tidy }));
+      const problem = phoneProblem(tidy);
+      setErrors((x) => ({ ...x, [k]: problem ?? undefined }));
+    },
+  });
+  const FIELD_LABEL: Partial<Record<keyof typeof emptyForm, string>> = {
+    fullName: 'Full name', sex: 'Sex', dateOfBirth: 'Date of birth', dateJoined: 'Date joined', classId: 'Class',
+    guardianRelationshipOther: 'Guardian’s relationship', phonePrimary: 'Primary telephone', phoneAlt: 'Alternative telephone',
+    emergencyRelationshipOther: 'Emergency contact’s relationship', emergencyPhone: 'Emergency contact telephone',
   };
   return (
     <Narrow width="4xl">
       <PageHeader title={editing ? `Edit ${existing.data?.fullName ?? 'pupil'}` : 'Register a pupil'} crumbs={[{ label: 'Pupils', to: '/pupils' }, { label: editing ? 'Edit' : 'New' }]}
         subtitle={editing ? <>Pupil ID <span className="font-mono">{existing.data?.pupilCode}</span> never changes. Use “Change class” or “Change status” on the pupil page for those.</> : 'The pupil ID (STJA-YYYY-NNNN) is issued automatically when you save.'} />
-      <form onSubmit={submit} className="space-y-6">
+      <form onSubmit={submit} noValidate className="form-roomy space-y-6">
+        <p className="text-sm text-slate-600">Fields marked <span className="font-semibold text-red-700" aria-hidden>*</span><span className="sr-only">with an asterisk</span> are required.</p>
+        {problems.length > 0 && (
+          <div ref={summaryRef} tabIndex={-1} role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700">
+            <p className="font-semibold">Please fix {problems.length === 1 ? 'this field' : `these ${problems.length} fields`} before saving:</p>
+            <ul className="mt-1 list-disc pl-5">{problems.map(([k, v]) => <li key={k}>{FIELD_LABEL[k] ?? k}: {v}</li>)}</ul>
+          </div>
+        )}
         <Card title="Pupil">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextInput label="Full name" value={form.fullName} onChange={(e) => set('fullName')(e.target.value)} required className="sm:col-span-2" />
-            <Select label="Sex" value={form.sex} onChange={(e) => set('sex')(e.target.value)} placeholder="Choose…" options={options('SEX')} required />
-            <DateInput label="Date of birth" value={form.dateOfBirth} onChange={set('dateOfBirth')} />
-            <DateInput label="Date joined" value={form.dateJoined} onChange={set('dateJoined')} required />
+          <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+            <TextInput label="Full name" value={form.fullName} onChange={(e) => set('fullName')(e.target.value)} required className="sm:col-span-2" autoComplete="off" maxLength={120} error={err('fullName')} hint="As it should appear on receipts and statements" />
+            <Select label="Sex" value={form.sex} onChange={(e) => set('sex')(e.target.value)} placeholder="Choose…" options={options('SEX')} required error={err('sex')} />
+            <DateInput label="Date of birth" value={form.dateOfBirth} onChange={set('dateOfBirth')} max={form.dateJoined || today} error={err('dateOfBirth')}
+              onTextValidity={(ok) => { setBadDates((b) => ({ ...b, dateOfBirth: !ok })); if (ok) setErrors((x) => ({ ...x, dateOfBirth: undefined })); }} hint="Optional. DD/MM/YYYY" />
+            <DateInput label="Date joined" value={form.dateJoined} onChange={set('dateJoined')} required max={today} error={err('dateJoined')}
+              onTextValidity={(ok) => { setBadDates((b) => ({ ...b, dateJoined: !ok })); if (ok) setErrors((x) => ({ ...x, dateJoined: undefined })); }} hint="DD/MM/YYYY. Cannot be in the future" />
             {!editing && (
-              <Select label="Class" value={form.classId} onChange={(e) => set('classId')(e.target.value)} placeholder="Choose…" required
-                options={(lookups?.classes ?? []).filter((c) => c.active).map((c) => ({ value: c.id, label: `${c.name} (${c.sectionName})` }))} hint="The section comes from the class." />
+              <Select label="Class" value={form.classId} onChange={(e) => set('classId')(e.target.value)} placeholder="Choose…" required error={err('classId')}
+                options={classes.map((c) => ({ value: c.id, label: `${c.name} (${c.sectionName})` }))}
+                hint={chosenClass ? <>Section: <span className="font-medium text-slate-700">{chosenClass.sectionName}</span> (set by the class)</> : 'The section comes from the class.'} />
             )}
           </div>
         </Card>
         <Card title="Parent or guardian">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextInput label="Parent / guardian name" value={form.guardianName} onChange={(e) => set('guardianName')(e.target.value)} />
+          <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+            <TextInput label="Parent / guardian name" value={form.guardianName} onChange={(e) => set('guardianName')(e.target.value)} autoComplete="off" maxLength={120} />
             <SelectWithOther label="Guardian's relationship to pupil" value={form.guardianRelationship} onChange={set('guardianRelationship')} placeholder="Choose…" options={options('RELATIONSHIP')}
-              other={form.guardianRelationshipOther} onOtherChange={set('guardianRelationshipOther')} otherLabel="Guardian's relationship (please specify)" />
-            <TextInput label="Primary telephone" value={form.phonePrimary} onChange={(e) => set('phonePrimary')(e.target.value)} placeholder="07XX XXX XXX or +256…" inputMode="tel" />
-            <TextInput label="Alternative telephone" value={form.phoneAlt} onChange={(e) => set('phoneAlt')(e.target.value)} inputMode="tel" />
-            <TextInput label="Physical address" value={form.address} onChange={(e) => set('address')(e.target.value)} className="sm:col-span-2" />
+              other={form.guardianRelationshipOther} onOtherChange={set('guardianRelationshipOther')} otherLabel="Guardian's relationship (please specify)" otherError={err('guardianRelationshipOther')} />
+            <TextInput label="Primary telephone" {...phoneProps('phonePrimary')} placeholder="0772 123 456" hint={PHONE_HINT} />
+            <TextInput label="Alternative telephone" {...phoneProps('phoneAlt')} placeholder="0752 123 456" hint="Optional" />
+            <TextArea label="Physical address" value={form.address} onChange={set('address')} rows={2} maxLength={300} className="sm:col-span-2" autoComplete="off" hint="Village or estate, parish and district" />
           </div>
         </Card>
         <Card title="Emergency contact">
           <p className="mb-4 text-sm text-slate-600">Someone to call if the parent or guardian cannot be reached.</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextInput label="Emergency contact name" value={form.emergencyName} onChange={(e) => set('emergencyName')(e.target.value)} />
+          <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+            <TextInput label="Emergency contact name" value={form.emergencyName} onChange={(e) => set('emergencyName')(e.target.value)} autoComplete="off" maxLength={120} />
             <SelectWithOther label="Emergency contact's relationship to pupil" value={form.emergencyRelationship} onChange={set('emergencyRelationship')} placeholder="Choose…" options={options('RELATIONSHIP')}
-              other={form.emergencyRelationshipOther} onOtherChange={set('emergencyRelationshipOther')} otherLabel="Emergency contact's relationship (please specify)" />
-            <TextInput label="Emergency contact telephone" value={form.emergencyPhone} onChange={(e) => set('emergencyPhone')(e.target.value)} placeholder="07XX XXX XXX or +256…" inputMode="tel" />
+              other={form.emergencyRelationshipOther} onOtherChange={set('emergencyRelationshipOther')} otherLabel="Emergency contact's relationship (please specify)" otherError={err('emergencyRelationshipOther')} />
+            <TextInput label="Emergency contact telephone" {...phoneProps('emergencyPhone')} placeholder="0772 123 456" hint={PHONE_HINT} />
           </div>
         </Card>
         <Card title="Notes">
-          <TextArea label="Notes" value={form.notes} onChange={set('notes')} />
+          <TextArea label="Notes" value={form.notes} onChange={set('notes')} maxLength={1000} hint="Optional. Anything the bursar should know, for example a sibling at the school" />
         </Card>
         <ErrorBox error={save.error} />
-        <div className="flex gap-2">
-          <Button type="submit" busy={save.isPending}>{editing ? 'Save changes' : 'Register pupil'}</Button>
-          <Button variant="secondary" onClick={() => navigate(-1)}>Cancel</Button>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button type="submit" className="h-11 px-5" busy={save.isPending}>{editing ? 'Save changes' : 'Register pupil'}</Button>
+          <Button variant="secondary" className="h-11 px-5" onClick={() => navigate(-1)}>Cancel</Button>
         </div>
       </form>
     </Narrow>

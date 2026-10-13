@@ -25,6 +25,21 @@
   /* Sign-in help fields: a stronger border for 3:1 contrast against the white card (WCAG 1.4.11). */
   .login-help .input { @apply border-slate-500 focus:ring-2; }
   .login-help input.input, .login-help select.input { height: 2.75rem; }
+  /* Roomier forms (Register a pupil): 46px controls, 13px padding, 8px corners, grey-blue borders at 3.5:1,
+     a navy focus ring, and clear hover, disabled and error states that do not rely on colour alone. */
+  .form-roomy .input {
+    @apply rounded-lg border-[#7c8aa0] px-[13px] text-[0.9375rem] shadow-none transition-colors
+      hover:border-brand-500 focus:border-brand-800 focus:ring-2 focus:ring-brand-800 focus:ring-offset-0
+      disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500;
+  }
+  .form-roomy input.input, .form-roomy select.input { height: 2.875rem; }
+  .form-roomy textarea.input { @apply py-2.5 leading-relaxed; }
+  .form-roomy select.input { @apply pr-10; background-position: right 0.75rem center; }
+  .form-roomy .input[aria-invalid='true'] { @apply border-red-700 border-2 focus:ring-red-700; }
+  .form-roomy .label { @apply mb-1.5 text-sm font-medium text-slate-800; }
+  .form-roomy .field-hint { @apply mt-1.5 text-[0.8125rem] text-slate-600; }
+  .form-roomy .field-error { @apply mt-1.5 text-[0.8125rem]; }
+  .form-roomy .date-pick { @apply inset-y-1.5; }
   .label { @apply mb-1 block text-sm font-medium text-slate-700; }
   .card { @apply rounded-lg border border-cream-200 bg-white shadow-sm; }
   /* :where() keeps these at utility strength, so a cell's own class (e.g. whitespace-normal) wins. */

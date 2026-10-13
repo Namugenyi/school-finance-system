@@ -284,3 +284,32 @@ test('the sign-in form flags empty fields, can show the password, and gives one 
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('alert')).toHaveText(unknownUser!);
 });
+
+test('the register-pupil form explains problems beside each field and tidies dates and phone numbers', async ({ browser }) => {
+  const page = await as(browser, 'bursar');
+  await page.goto('/pupils/new');
+  await page.getByRole('button', { name: 'Register pupil' }).click();
+  const summary = page.getByRole('alert').filter({ hasText: 'Please fix' });
+  await expect(summary).toBeFocused();
+  await expect(summary).toContainText('Full name');
+  await expect(page.getByLabel('Full name')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('.field-error', { hasText: 'Choose a class' })).toBeVisible();
+
+  await page.getByLabel('Date of birth').pressSequentially('05022019');
+  await expect(page.getByLabel('Date of birth')).toHaveValue('05/02/2019');
+  await page.getByLabel('Primary telephone').fill('256772123456');
+  await page.getByLabel('Primary telephone').blur();
+  await expect(page.getByLabel('Primary telephone')).toHaveValue('+256 772 123 456');
+  await page.getByLabel('Alternative telephone').fill('12345');
+  await page.getByLabel('Alternative telephone').blur();
+  await expect(page.locator('.field-error', { hasText: 'Enter a Ugandan number' })).toBeVisible();
+  await page.getByLabel('Alternative telephone').fill('');
+
+  await page.getByLabel('Full name').fill('Brian Form Check');
+  await page.getByLabel('Sex').selectOption({ label: 'Male' });
+  await page.getByLabel('Class').selectOption({ label: 'P2 (Primary)' });
+  await expect(page.getByText('Section: Primary')).toBeVisible();
+  await page.getByRole('button', { name: 'Register pupil' }).click();
+  await expect(page.getByRole('heading', { name: 'Brian Form Check' })).toBeVisible();
+  await expect(page.getByText('05/02/2019')).toBeVisible();
+});

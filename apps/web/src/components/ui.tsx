@@ -30,6 +30,13 @@ export function Button({ variant = 'primary', busy, className, children, ...rest
   );
 }
 
+const ErrorIcon = () => (
+  <svg aria-hidden viewBox="0 0 20 20" fill="currentColor" className="mt-px h-4 w-4 shrink-0"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+);
+
+/** Ids for a field's helper text and error, so the control can point at them with aria-describedby. */
+export const describedBy = (id: string, error?: string | null, hint?: ReactNode) => (error ? `${id}-error` : hint ? `${id}-hint` : undefined);
+
 export function Field({ label, error, hint, children, required, className }: { label: string; error?: string | null; hint?: ReactNode; children: (id: string) => ReactNode; required?: boolean; className?: string }) {
   const id = useId();
   return (
@@ -39,19 +46,19 @@ export function Field({ label, error, hint, children, required, className }: { l
         {required && <span className="ml-0.5 text-red-600" aria-hidden>*</span>}
       </label>
       {children(id)}
-      {hint && !error && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
-      {error && <p className="mt-1 text-xs text-red-700" role="alert">{error}</p>}
+      {hint && !error && <p id={`${id}-hint`} className="field-hint mt-1 text-xs text-slate-500">{hint}</p>}
+      {error && <p id={`${id}-error`} className="field-error mt-1 flex items-start gap-1 text-xs font-medium text-red-700"><ErrorIcon />{error}</p>}
     </div>
   );
 }
 
 export function TextInput({ label, error, hint, required, className, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string | null; hint?: ReactNode }) {
-  return <Field label={label} error={error} hint={hint} required={required} className={className}>{(id) => <input id={id} className="input" required={required} {...rest} />}</Field>;
+  return <Field label={label} error={error} hint={hint} required={required} className={className}>{(id) => <input id={id} className="input" required={required} aria-invalid={error ? true : undefined} aria-describedby={describedBy(id, error, hint)} {...rest} />}</Field>;
 }
 
 export function Select({ label, options, placeholder, error, hint, required, className, ...rest }: SelectHTMLAttributes<HTMLSelectElement> & { label?: string; options: Array<{ value: string | number; label: string }>; placeholder?: string; error?: string | null; hint?: ReactNode }) {
   const select = (id?: string) => (
-    <select id={id} className="input" required={required} {...rest}>
+    <select id={id} className="input" required={required} aria-invalid={error ? true : undefined} aria-describedby={id ? describedBy(id, error, hint) : undefined} {...rest}>
       {placeholder !== undefined && <option value="">{placeholder}</option>}
       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
@@ -70,51 +77,109 @@ export const withOther = (text: string | null | undefined, other: string | null 
  * A dropdown that, when "Other" is picked, shows a required box for what isn't on the list.
  * In the two-column forms the box takes its own full-width row under the dropdown.
  */
-export function SelectWithOther({ other, onOtherChange, otherLabel, onChange, value, ...rest }: Omit<Parameters<typeof Select>[0], 'onChange' | 'value'> & {
-  value: string; onChange: (v: string) => void; other: string; onOtherChange: (v: string) => void; otherLabel: string;
+export function SelectWithOther({ other, onOtherChange, otherLabel, otherError, onChange, value, ...rest }: Omit<Parameters<typeof Select>[0], 'onChange' | 'value'> & {
+  value: string; onChange: (v: string) => void; other: string; onOtherChange: (v: string) => void; otherLabel: string; otherError?: string | null;
 }) {
   return (
     <>
       <Select value={value} onChange={(e) => onChange(e.target.value)} {...rest} />
       {value === OTHER && (
-        <TextInput label={otherLabel} value={other} onChange={(e) => onOtherChange(e.target.value)} required maxLength={120} autoFocus
+        <TextInput label={otherLabel} value={other} onChange={(e) => onOtherChange(e.target.value)} required maxLength={120} autoFocus error={otherError}
           placeholder="Type what isn’t on the list" className="sm:col-span-2" />
       )}
     </>
   );
 }
 
-/** Date entry shown and typed as DD/MM/YYYY (FR-606); the value is YYYY-MM-DD. */
-export function DateInput({ label, value, onChange, required, error, hint, className, disabled }: { label: string; value: string; onChange: (iso: string) => void; required?: boolean; error?: string | null; hint?: ReactNode; className?: string; disabled?: boolean }) {
+/** Insert the slashes as digits are typed: "0102" -> "01/02/", "01022026" -> "01/02/2026". */
+export function autoSlashDate(next: string, prev: string): string {
+  if (/^\d{8}$/.test(next)) return `${next.slice(0, 2)}/${next.slice(2, 4)}/${next.slice(4)}`;
+  if (next.length > prev.length && (/^\d{2}$/.test(next) || /^\d{1,2}\/\d{2}$/.test(next))) return `${next}/`;
+  return next;
+}
+
+/** Tidy a typed date on leaving the field: "1/2/2026" -> "01/02/2026". Unparseable text is left as typed. */
+function tidyDate(text: string): string {
+  const iso = parseDisplayDate(text);
+  return iso ? formatDate(iso) : text;
+}
+
+/**
+ * Date entry shown and typed as DD/MM/YYYY (FR-606); the value is YYYY-MM-DD.
+ * Slashes are added while typing, a calendar button opens the browser's date picker,
+ * and a badly formed date is flagged when the person leaves the field.
+ */
+export function DateInput({ label, value, onChange, required, error, hint, className, disabled, max, min, onTextValidity }: { label: string; value: string; onChange: (iso: string) => void; required?: boolean; error?: string | null; hint?: ReactNode; className?: string; disabled?: boolean; max?: string; min?: string; onTextValidity?: (ok: boolean) => void }) {
   const [text, setText] = useState(formatDate(value));
   const [bad, setBad] = useState(false);
   const last = useRef(value);
+  const picker = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (value !== last.current) {
       setText(formatDate(value));
+      setBad(false);
       last.current = value;
     }
   }, [value]);
+  const accept = (raw: string) => {
+    setText(raw);
+    const iso = parseDisplayDate(raw);
+    if (iso) setBad(false);
+    onTextValidity?.(raw.trim() === '' || !!iso);
+    const next = iso ?? '';
+    last.current = next;
+    onChange(next);
+  };
+  const shown = error ?? (bad ? 'Enter the date as DD/MM/YYYY, for example 05/02/2026' : null);
   return (
-    <Field label={label} required={required} error={error ?? (bad ? 'Use DD/MM/YYYY' : null)} hint={hint ?? 'DD/MM/YYYY'} className={className}>
+    <Field label={label} required={required} error={shown} hint={hint ?? 'DD/MM/YYYY'} className={className}>
       {(id) => (
-        <input
-          id={id}
-          className="input"
-          inputMode="numeric"
-          placeholder="DD/MM/YYYY"
-          value={text}
-          disabled={disabled}
-          required={required}
-          onChange={(e) => {
-            setText(e.target.value);
-            const iso = parseDisplayDate(e.target.value);
-            setBad(e.target.value !== '' && !iso);
-            const next = iso ?? '';
-            last.current = next;
-            onChange(next);
-          }}
-        />
+        <div className="relative">
+          <input
+            id={id}
+            className="input pr-11"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="DD/MM/YYYY"
+            maxLength={10}
+            value={text}
+            disabled={disabled}
+            required={required}
+            aria-invalid={shown ? true : undefined}
+            aria-describedby={describedBy(id, shown, hint ?? 'DD/MM/YYYY')}
+            onChange={(e) => accept(autoSlashDate(e.target.value, text))}
+            onBlur={() => {
+              const tidy = tidyDate(text);
+              if (tidy !== text) setText(tidy);
+              setBad(text.trim() !== '' && !parseDisplayDate(text));
+            }}
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            className="date-pick absolute inset-y-1 right-1 inline-flex w-9 items-center justify-center rounded text-slate-600 hover:bg-slate-100 hover:text-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => {
+              const el = picker.current;
+              if (!el) return;
+              el.value = value;
+              try { el.showPicker(); } catch { el.focus(); }
+            }}
+          >
+            <svg aria-hidden viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5"><path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clipRule="evenodd" /></svg>
+            {/* Named by its content, not aria-label, so it is never mistaken for the date box's own label. */}
+            <span className="sr-only">Open calendar ({label})</span>
+          </button>
+          <input
+            ref={picker}
+            type="date"
+            tabIndex={-1}
+            aria-hidden
+            max={max}
+            min={min}
+            className="pointer-events-none absolute bottom-0 right-0 h-px w-px opacity-0"
+            onChange={(e) => { if (e.target.value) accept(formatDate(e.target.value)); }}
+          />
+        </div>
       )}
     </Field>
   );
@@ -335,8 +400,12 @@ export function TableWrap({ children }: { children: ReactNode }) {
   return <div className="max-h-[75vh] overflow-auto print:max-h-none print:overflow-visible">{children}</div>;
 }
 
-export function TextArea({ label, value, onChange, rows = 3, required, hint }: { label: string; value: string; onChange: (v: string) => void; rows?: number; required?: boolean; hint?: ReactNode }) {
-  return <Field label={label} required={required} hint={hint}>{(id) => <textarea id={id} rows={rows} className="input" value={value} required={required} onChange={(e) => onChange(e.target.value)} />}</Field>;
+export function TextArea({ label, value, onChange, rows = 3, required, hint, error, maxLength, className, placeholder, autoComplete }: { label: string; value: string; onChange: (v: string) => void; rows?: number; required?: boolean; hint?: ReactNode; error?: string | null; maxLength?: number; className?: string; placeholder?: string; autoComplete?: string }) {
+  return (
+    <Field label={label} required={required} hint={hint} error={error} className={className}>
+      {(id) => <textarea id={id} rows={rows} className="input" value={value} required={required} maxLength={maxLength} placeholder={placeholder} autoComplete={autoComplete} aria-invalid={error ? true : undefined} aria-describedby={describedBy(id, error, hint)} onChange={(e) => onChange(e.target.value)} />}
+    </Field>
+  );
 }
 
 /** Approve / reject with a note; the reason is required to reject. */
