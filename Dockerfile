@@ -5,6 +5,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+# The API's postinstall generates the Prisma client from the schema.
+COPY apps/api/prisma apps/api/prisma
 RUN npm ci
 COPY . .
 RUN npm run build && npm prune --omit=dev
