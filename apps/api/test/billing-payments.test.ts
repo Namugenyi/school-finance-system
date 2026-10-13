@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { bill, chargesOf, createPupil, key, login, pay, resetDb, setFees, type Client, type World } from './helpers';
 
 let w: World;
