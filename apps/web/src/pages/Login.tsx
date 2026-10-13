@@ -26,7 +26,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center text-white">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-accent-600 text-2xl font-bold text-white">S</div>
+          <img src="/stja-logo.webp" alt="Supreme Tower Junior School logo" width={160} height={160} className="mx-auto mb-4 h-32 w-32 drop-shadow-lg sm:h-40 sm:w-40" />
           <h1 className="text-xl font-semibold">Supreme Tower Junior Academy</h1>
           <p className="text-sm text-brand-100">Finance &amp; Accounts</p>
         </div>
