@@ -73,6 +73,7 @@ export function App() {
         <Route path="users" element={<Guard perm="users.manage"><UsersPage /></Guard>} />
         <Route path="audit" element={<Guard perm="audit.view"><AuditPage /></Guard>} />
         <Route path="account" element={<AccountPage />} />
+        <Route path="login" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Notice tone="warning" title="Page not found">That page does not exist.</Notice>} />
       </Route>
     </Routes>

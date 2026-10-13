@@ -9,9 +9,9 @@ export function cx(...c: Array<string | false | null | undefined>) {
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
 const variants: Record<Variant, string> = {
-  primary: 'bg-brand-700 text-white hover:bg-brand-800 disabled:bg-brand-300',
+  primary: 'bg-accent-600 text-white hover:bg-accent-700 disabled:bg-accent-200',
   secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 disabled:text-slate-400',
-  danger: 'bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300',
+  danger: 'border border-red-700 bg-white text-red-700 hover:bg-red-50 disabled:border-red-200 disabled:text-red-300',
   success: 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-emerald-300',
   ghost: 'text-slate-600 hover:bg-slate-100',
 };
@@ -163,18 +163,18 @@ export function PageHeader({ title, subtitle, actions, crumbs }: { title: string
   return (
     <div className="mb-5">
       {crumbs && (
-        <nav aria-label="Breadcrumb" className="no-print mb-1 text-xs text-slate-500">
+        <nav aria-label="Breadcrumb" className="no-print mb-1 text-xs text-slate-600">
           {crumbs.map((c, i) => (
             <span key={i}>
               {i > 0 && <span className="mx-1.5">/</span>}
-              {c.to ? <Link to={c.to} className="hover:text-brand-700 hover:underline">{c.label}</Link> : <span>{c.label}</span>}
+              {c.to ? <Link to={c.to} className="hover:text-accent-700 hover:underline">{c.label}</Link> : <span>{c.label}</span>}
             </span>
           ))}
         </nav>
       )}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-brand-900">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-slate-600">{subtitle}</p>}
         </div>
         {actions && <div className="no-print flex flex-wrap gap-2">{actions}</div>}
@@ -217,7 +217,7 @@ export function Notice({ tone = 'info', children, title }: { tone?: 'info' | 'wa
 export function Loading({ label = 'Loading…' }: { label?: string }) {
   return (
     <div className="flex items-center gap-2 py-8 text-sm text-slate-500" role="status">
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600" aria-hidden />
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-accent-600" aria-hidden />
       {label}
     </div>
   );
@@ -290,7 +290,7 @@ export function Tabs({ tabs, active, onChange }: { tabs: Array<{ key: string; la
           role="tab"
           aria-selected={active === t.key}
           onClick={() => onChange(t.key)}
-          className={cx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', active === t.key ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500 hover:text-slate-800')}
+          className={cx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', active === t.key ? 'border-accent-600 text-brand-900' : 'border-transparent text-slate-500 hover:text-slate-800')}
         >
           {t.label}
         </button>

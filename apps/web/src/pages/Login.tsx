@@ -23,10 +23,10 @@ export function LoginPage() {
     }
   };
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center text-white">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-gold-400 text-2xl font-bold text-brand-950">S</div>
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-accent-600 text-2xl font-bold text-white">S</div>
           <h1 className="text-xl font-semibold">Supreme Tower Junior Academy</h1>
           <p className="text-sm text-brand-100">Finance &amp; Accounts</p>
         </div>

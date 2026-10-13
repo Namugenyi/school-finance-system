@@ -126,18 +126,18 @@ export function Layout({ children }: { children?: ReactNode }) {
         if (!items.length) return null;
         return (
           <div key={g.group || 'top'}>
-            {g.group && <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-brand-200/80">{g.group}</p>}
+            {g.group && <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-brand-200">{g.group}</p>}
             <ul className="space-y-0.5">
               {items.map((i) => (
                 <li key={i.to}>
                   <NavLink
                     to={i.to}
                     end={i.to === '/'}
-                    className={({ isActive }) => cx('flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm', isActive ? 'bg-brand-800 font-medium text-white' : 'text-brand-100 hover:bg-brand-800/60 hover:text-white')}
+                    className={({ isActive }) => cx('flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm', isActive ? 'bg-accent-600 font-medium text-white' : 'text-brand-100 hover:bg-brand-700 hover:text-white')}
                   >
                     <span aria-hidden className="w-4 text-center text-xs opacity-80">{i.icon}</span>
                     <span className="flex-1">{i.label}</span>
-                    {i.to === '/approvals' && waiting > 0 && <span className="rounded-full bg-gold-400 px-1.5 text-xs font-semibold text-brand-950">{waiting}</span>}
+                    {i.to === '/approvals' && waiting > 0 && <span className="rounded-full bg-cream-100 px-1.5 text-xs font-semibold text-brand-900">{waiting}</span>}
                   </NavLink>
                 </li>
               ))}
@@ -153,7 +153,7 @@ export function Layout({ children }: { children?: ReactNode }) {
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2">Skip to content</a>
       <aside className={cx('no-print fixed inset-y-0 left-0 z-40 w-64 transform overflow-y-auto bg-brand-900 transition lg:static lg:translate-x-0', menuOpen ? 'translate-x-0' : '-translate-x-full')}>
         <Link to="/" className="flex items-center gap-2.5 border-b border-brand-800 px-5 py-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-gold-400 text-lg font-bold text-brand-950">S</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-accent-600 text-lg font-bold text-white">S</span>
           <span className="leading-tight">
             <span className="block text-sm font-semibold text-white">STJA Finance</span>
             <span className="block text-[11px] text-brand-200">Supreme Tower Junior Academy</span>
@@ -163,7 +163,7 @@ export function Layout({ children }: { children?: ReactNode }) {
       </aside>
       {menuOpen && <div className="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" onClick={() => setMenuOpen(false)} aria-hidden />}
       <div className="min-w-0 flex-1">
-        <header className="no-print sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-2.5 backdrop-blur">
+        <header className="no-print sticky top-0 z-20 flex items-center gap-3 border-b border-cream-200 bg-white/95 px-4 py-2.5 backdrop-blur">
           <button type="button" className="rounded p-1.5 text-slate-600 hover:bg-slate-100 lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Open menu">☰</button>
           <GlobalSearch />
           <div className="ml-auto flex items-center gap-2">
@@ -171,7 +171,7 @@ export function Layout({ children }: { children?: ReactNode }) {
             {can('approvals.view') && (
               <Link to="/approvals" className="relative rounded p-1.5 text-slate-600 hover:bg-slate-100" aria-label={`Approvals waiting: ${waiting}`}>
                 <span aria-hidden>🔔</span>
-                {waiting > 0 && <span className="absolute -right-0.5 -top-0.5 rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{waiting}</span>}
+                {waiting > 0 && <span className="absolute -right-0.5 -top-0.5 rounded-full bg-accent-600 px-1 text-[10px] font-bold text-white">{waiting}</span>}
               </Link>
             )}
             <div className="relative">

@@ -324,7 +324,7 @@ export function PayslipPage() {
         {status !== 'POSTED' && <div className="mb-4"><Notice tone="warning">This payroll run is not approved yet ({status.toLowerCase()}). Figures may change.</Notice></div>}
       </div>
       <article className="card print-area p-6">
-        <header className="border-b-2 border-brand-800 pb-3">
+        <header className="border-b-2 border-accent-600 pb-3">
           <h2 className="text-lg font-bold uppercase text-brand-900">{school.name}</h2>
           {school.address && <p className="text-sm">{school.address}</p>}
           <p className="mt-2 font-semibold">Payslip for {period}</p>

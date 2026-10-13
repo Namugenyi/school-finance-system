@@ -124,7 +124,7 @@ export function StatementPage() {
           </>} />
       </div>
       <article className="card print-area p-6">
-        <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-brand-800 pb-3">
+        <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-accent-600 pb-3">
           <div>
             <h2 className="text-lg font-bold uppercase text-brand-900">{s.school.name}</h2>
             <p className="text-sm">{[s.school.address, s.school.phone, s.school.email].filter(Boolean).join(' · ')}</p>

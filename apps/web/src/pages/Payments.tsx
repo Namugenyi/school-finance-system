@@ -246,7 +246,7 @@ export function ReceiptPage() {
       </div>
       <article className="card print-area relative p-8">
         {r.reversed && <div className="pointer-events-none absolute inset-0 flex items-center justify-center"><span className="-rotate-12 rounded border-4 border-red-600 px-6 py-2 text-5xl font-bold uppercase text-red-600/80">Reversed</span></div>}
-        <header className="flex items-start justify-between border-b-2 border-brand-800 pb-4">
+        <header className="flex items-start justify-between border-b-2 border-accent-600 pb-4">
           <div>
             <h2 className="text-xl font-bold uppercase text-brand-900">{r.school.name}</h2>
             {r.school.address && <p className="text-sm">{r.school.address}</p>}
