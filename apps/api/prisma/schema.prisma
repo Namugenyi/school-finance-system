@@ -16,20 +16,43 @@ datasource db {
 // ───────────────────────────── Security, users and audit (M18) ─────────────────────────────
 
 model User {
-  id                 Int        @id @default(autoincrement())
-  username           String     @unique
+  id                 Int             @id @default(autoincrement())
+  username           String          @unique
   fullName           String
   email              String?
   passwordHash       String
-  active             Boolean    @default(true)
-  mustChangePassword Boolean    @default(false)
-  failedLogins       Int        @default(0)
+  active             Boolean         @default(true)
+  mustChangePassword Boolean         @default(false)
+  failedLogins       Int             @default(0)
   lockedUntil        DateTime?
   lastLoginAt        DateTime?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
   roles              UserRole[]
   sessions           Session[]
+  accessRequests     AccessRequest[] @relation("AccessRequests")
+}
+
+/// A request from the sign-in page for help getting into an account. Kept even when the username
+/// matches nobody, so the person asking learns nothing about which accounts exist.
+model AccessRequest {
+  id           Int       @id @default(autoincrement())
+  username     String
+  userId       Int?
+  user         User?     @relation("AccessRequests", fields: [userId], references: [id], onDelete: SetNull)
+  // LOCKED_OUT | FORGOT_PASSWORD | OTHER
+  reason       String
+  contactPhone String?
+  note         String?
+  ip           String?
+  // PENDING | UNLOCKED | PASSWORD_RESET | DISMISSED
+  status       String    @default("PENDING")
+  createdAt    DateTime  @default(now())
+  resolvedById Int?
+  resolvedAt   DateTime?
+  resolution   String?
+
+  @@index([status])
 }
 
 model Role {
@@ -99,17 +122,21 @@ model IdSequence {
 // ───────────────────────────── Setup and reference data (M02) ─────────────────────────────
 
 model SchoolSettings {
-  id               Int      @id @default(1)
-  schoolName       String
-  address          String?
-  phone            String?
-  email            String?
-  registrationNo   String?
-  pupilIdStartYear Int
-  receiptFooter    String?
+  id                Int      @id @default(1)
+  schoolName        String
+  address           String?
+  phone             String?
+  email             String?
+  registrationNo    String?
+  pupilIdStartYear  Int
+  receiptFooter     String?
+  // Shown on the sign-in page for people who cannot get into their account.
+  adminContactName  String?
+  adminContactPhone String?
+  adminContactEmail String?
   // Payroll stays off for live use until statutory rates are signed off (G-03, WR-17).
-  payrollEnabled   Boolean  @default(false)
-  updatedAt        DateTime @updatedAt
+  payrollEnabled    Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
 }
 
 model ReferenceList {

@@ -7,7 +7,7 @@ import { Button, Card, DateInput, ErrorBox, Loading, Modal, Notice, PageHeader, 
 import { FREQ } from './Fees';
 import type { RefValue, Term } from '../lib/types';
 
-interface Settings { schoolName: string; address: string | null; phone: string | null; email: string | null; registrationNo: string | null; receiptFooter: string | null; pupilIdStartYear: number; payrollEnabled: boolean }
+interface Settings { schoolName: string; address: string | null; phone: string | null; email: string | null; registrationNo: string | null; receiptFooter: string | null; adminContactName: string | null; adminContactPhone: string | null; adminContactEmail: string | null; pupilIdStartYear: number; payrollEnabled: boolean }
 interface RefList { id: number; code: string; name: string; description: string | null; locked: boolean; values: Array<RefValue & { sortOrder: number }> }
 
 /** After any setup change, every dropdown in the app refreshes (FR-103). */
@@ -38,7 +38,7 @@ function School({ manage }: { manage: boolean }) {
   const [f, setF] = useState<Settings | null>(null);
   const [saved, setSaved] = useState(false);
   useEffect(() => { if (q.data) setF(q.data); }, [q.data]);
-  const save = useSetupMutation(() => api.patch('/setup/settings', { ...f, address: f!.address || null, phone: f!.phone || null, email: f!.email || '', registrationNo: f!.registrationNo || null, receiptFooter: f!.receiptFooter || null }), () => setSaved(true));
+  const save = useSetupMutation(() => api.patch('/setup/settings', { ...f, address: f!.address || null, phone: f!.phone || null, email: f!.email || '', registrationNo: f!.registrationNo || null, receiptFooter: f!.receiptFooter || null, adminContactName: f!.adminContactName || null, adminContactPhone: f!.adminContactPhone || null, adminContactEmail: f!.adminContactEmail || '' }), () => setSaved(true));
   const [confirmPayroll, setConfirmPayroll] = useState(false);
   if (!f) return <Loading />;
   const set = (k: keyof Settings) => (e: { target: { value: string } }) => { setSaved(false); setF({ ...f, [k]: e.target.value }); };
@@ -53,6 +53,11 @@ function School({ manage }: { manage: boolean }) {
           <TextInput label="Registration number" value={f.registrationNo ?? ''} onChange={set('registrationNo')} />
           <TextInput label="First year for pupil IDs" inputMode="numeric" value={String(f.pupilIdStartYear)} onChange={(e) => setF({ ...f, pupilIdStartYear: Number(e.target.value) || f.pupilIdStartYear })} hint="Pupil IDs look like STJA-YYYY-NNNN" />
           <TextInput label="Receipt footer" value={f.receiptFooter ?? ''} onChange={set('receiptFooter')} className="sm:col-span-2" hint="Printed at the bottom of every receipt" />
+          <h3 className="pt-2 text-sm font-semibold text-brand-900 sm:col-span-2">Administrator contact on the sign-in page</h3>
+          <p className="-mt-3 text-xs text-slate-500 sm:col-span-2">Shown to staff who cannot sign in. If phone or email is left empty, the school phone or email above is shown instead.</p>
+          <TextInput label="Contact name" value={f.adminContactName ?? ''} onChange={set('adminContactName')} className="sm:col-span-2" />
+          <TextInput label="Contact phone" type="tel" value={f.adminContactPhone ?? ''} onChange={set('adminContactPhone')} />
+          <TextInput label="Contact email" type="email" value={f.adminContactEmail ?? ''} onChange={set('adminContactEmail')} />
         </fieldset>
         <div className="mt-3"><ErrorBox error={save.error} />{saved && <Notice tone="success">Saved.</Notice>}</div>
       </Card>

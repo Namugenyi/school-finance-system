@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { Button, Card, ErrorBox, Notice, PageHeader, TextInput, Narrow } from '../components/ui';
+import { Button, Card, ErrorBox, Notice, PageHeader, Select, TextArea, TextInput, Narrow } from '../components/ui';
 
 export function LoginPage() {
   const { refresh } = useAuth();
@@ -9,6 +9,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const [help, setHelp] = useState(false);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -35,9 +36,86 @@ export function LoginPage() {
           <TextInput label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           <ErrorBox error={error} />
           <Button type="submit" className="w-full" busy={busy}>Sign in</Button>
+          <div className="text-center">
+            <button type="button" className="text-sm font-medium text-accent-700 underline-offset-2 hover:underline" aria-expanded={help} aria-controls="sign-in-help" onClick={() => setHelp(!help)}>
+              {help ? 'Hide sign-in help' : 'Trouble signing in?'}
+            </button>
+          </div>
         </form>
+        {help && <SignInHelp username={username} />}
         <p className="mt-4 text-center text-xs text-brand-100">Kasangati, Uganda · Authorised staff only</p>
       </div>
+    </div>
+  );
+}
+
+interface HelpContact { schoolName: string | null; contactName: string | null; phone: string | null; email: string | null }
+
+const REASONS = [
+  { value: 'LOCKED_OUT', label: 'My account is locked' },
+  { value: 'FORGOT_PASSWORD', label: 'I forgot my password' },
+  { value: 'OTHER', label: 'Something else' },
+];
+
+/** For staff who cannot get in: ask the administrator to unlock the account, or contact them directly. */
+function SignInHelp({ username: typed }: { username: string }) {
+  const [contact, setContact] = useState<HelpContact | null>(null);
+  const [username, setUsername] = useState(typed);
+  const [reason, setReason] = useState('LOCKED_OUT');
+  const [phone, setPhone] = useState('');
+  const [note, setNote] = useState('');
+  const [sent, setSent] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    api.get<HelpContact>('/auth/help').then(setContact).catch(() => setContact(null));
+  }, []);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api.post<{ message: string }>('/auth/access-requests', { username, reason, contactPhone: phone || null, note: note || null });
+      setSent(res.message);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const hasContact = contact && (contact.phone || contact.email);
+  return (
+    <div id="sign-in-help" className="mt-4 space-y-4">
+      <section className="card space-y-4 p-6" aria-labelledby="unlock-heading">
+        <div>
+          <h2 id="unlock-heading" className="text-base font-semibold text-brand-900">Unlock account or reset password</h2>
+          <p className="mt-1 text-sm text-slate-600">Send a request to the school administrator. They can unlock your account or give you a temporary password to change when you sign in.</p>
+        </div>
+        {sent ? (
+          <Notice tone="success" title="Request sent">{sent}</Notice>
+        ) : (
+          <form onSubmit={submit} className="space-y-4">
+            <TextInput label="Your username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+            <Select label="What is the problem?" options={REASONS} value={reason} onChange={(e) => setReason(e.target.value)} required />
+            <TextInput label="Phone number to reach you" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} hint="Optional" />
+            <TextArea label="Anything else the administrator should know" value={note} onChange={setNote} rows={2} hint="Optional. Never write your password here." />
+            <ErrorBox error={error} />
+            <Button type="submit" variant="secondary" className="w-full" busy={busy}>Send request to administrator</Button>
+          </form>
+        )}
+      </section>
+      <section className="card space-y-2 p-6" aria-labelledby="contact-heading">
+        <h2 id="contact-heading" className="text-base font-semibold text-brand-900">Contact the administrator</h2>
+        {hasContact ? (
+          <dl className="space-y-1 text-sm">
+            {contact.contactName && <div><dt className="sr-only">Name</dt><dd className="font-medium">{contact.contactName}</dd></div>}
+            {contact.phone && <div className="flex gap-2"><dt className="text-slate-500">Phone</dt><dd><a className="font-medium text-accent-700 hover:underline" href={`tel:${contact.phone.replace(/\s+/g, '')}`}>{contact.phone}</a></dd></div>}
+            {contact.email && <div className="flex gap-2"><dt className="text-slate-500">Email</dt><dd><a className="font-medium text-accent-700 hover:underline" href={`mailto:${contact.email}`}>{contact.email}</a></dd></div>}
+          </dl>
+        ) : (
+          <p className="text-sm text-slate-600">Speak to the school administrator or the bursar's office in person.</p>
+        )}
+      </section>
     </div>
   );
 }

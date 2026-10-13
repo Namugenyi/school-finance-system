@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import { randomInt } from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { prisma } from '../db';
@@ -27,6 +28,26 @@ export const passwordSchema = z
   .min(10, 'Password must be at least 10 characters')
   .max(200)
   .refine((p) => /[A-Za-z]/.test(p) && /\d/.test(p), 'Password must contain letters and numbers');
+
+const accessRequestLimiter = rateLimit({
+  windowMs: 60 * 60_000,
+  limit: config.env === 'test' ? 1000 : 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: { code: 'RATE_LIMITED', message: 'Too many requests from this device. Contact the administrator directly.' } },
+});
+
+export const ACCESS_REQUEST_REASONS = ['LOCKED_OUT', 'FORGOT_PASSWORD', 'OTHER'] as const;
+export const ACCESS_REQUEST_SENT =
+  'Thank you. If the username matches an account, the administrator will see your request and get back to you. You can also contact them directly.';
+
+/** A one-off password an administrator hands to the user; it must be changed at next sign-in. */
+export function temporaryPassword() {
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const pick = (set: string, n: number) => Array.from({ length: n }, () => set[randomInt(set.length)]).join('');
+  return `${pick(letters, 4)}-${pick(digits, 4)}-${pick(letters, 4)}`;
+}
 
 export function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -67,6 +88,52 @@ router.post(
     setSessionCookie(res, session.token, session.expiresAt);
     await audit(prisma, { id: user.id, username: user.username } as never, 'auth.login', 'User', user.id, { ip: req.ip });
     return { ok: true };
+  }),
+);
+
+// Public: what the sign-in page shows to someone who cannot get into their account.
+router.get(
+  '/help',
+  handle(async () => {
+    const s = await prisma.schoolSettings.findUnique({ where: { id: 1 } });
+    return {
+      schoolName: s?.schoolName ?? null,
+      contactName: s?.adminContactName ?? null,
+      phone: s?.adminContactPhone ?? s?.phone ?? null,
+      email: s?.adminContactEmail ?? s?.email ?? null,
+    };
+  }),
+);
+
+// Public: ask the administrator to unlock an account or reset a password.
+// The answer never says whether the username exists or whether it is locked.
+router.post(
+  '/access-requests',
+  accessRequestLimiter,
+  handle(async (req) => {
+    const body = parse(
+      z.object({
+        username: z.string().trim().toLowerCase().min(1, 'Enter your username').max(60),
+        reason: z.enum(ACCESS_REQUEST_REASONS),
+        contactPhone: z.string().trim().max(60).nullable().optional(),
+        note: z.string().trim().max(500).nullable().optional(),
+      }),
+      req.body,
+    );
+    const user = await prisma.user.findUnique({ where: { username: body.username } });
+    const pending = await prisma.accessRequest.findFirst({ where: { username: body.username, status: 'PENDING' } });
+    if (pending) {
+      await prisma.accessRequest.update({
+        where: { id: pending.id },
+        data: { reason: body.reason, contactPhone: body.contactPhone || pending.contactPhone, note: body.note || pending.note, ip: req.ip ?? null },
+      });
+    } else {
+      const created = await prisma.accessRequest.create({
+        data: { username: body.username, userId: user?.id ?? null, reason: body.reason, contactPhone: body.contactPhone || null, note: body.note || null, ip: req.ip ?? null },
+      });
+      await audit(prisma, null, 'auth.access_request', 'AccessRequest', created.id, { after: { username: body.username, reason: body.reason }, ip: req.ip ?? null });
+    }
+    return { ok: true, message: ACCESS_REQUEST_SENT };
   }),
 );
 

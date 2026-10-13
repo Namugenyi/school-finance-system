@@ -225,3 +225,31 @@ test('unpaid balances carry forward into the next year once', async ({ browser }
   await expect(bursar.getByText('from School Fees, Term 3 2026')).toBeVisible();
   await expect(bursar.getByText('330,000.00').first()).toBeVisible();
 });
+
+test('a locked-out user asks for help and the administrator sets a temporary password', async ({ browser }) => {
+  const page = await (await browser.newContext()).newPage();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Trouble signing in?' }).click();
+  await expect(page.getByRole('heading', { name: 'Contact the administrator' })).toBeVisible();
+  await page.getByLabel('Your username').fill('bursar2');
+  await page.getByLabel('What is the problem?').selectOption({ label: 'I forgot my password' });
+  await page.getByLabel('Phone number to reach you').fill('0772000999');
+  await page.getByRole('button', { name: 'Send request to administrator' }).click();
+  await expect(page.getByText('Request sent')).toBeVisible();
+
+  const admin = await as(browser, 'admin');
+  await admin.goto('/users');
+  const row = admin.getByRole('row', { name: /bursar2/ }).first();
+  await expect(row).toContainText('Forgot password');
+  await row.getByRole('button', { name: 'Reset password' }).click();
+  await admin.getByRole('dialog').getByRole('button', { name: 'Set temporary password' }).click();
+  const temp = (await admin.getByTestId('temporary-password').textContent())!.trim();
+  await admin.getByRole('button', { name: 'Done' }).click();
+  await expect(admin.getByRole('row', { name: /bursar2/ }).first()).toContainText('Temporary password set');
+
+  await page.reload();
+  await page.getByLabel('Username').fill('bursar2');
+  await page.getByLabel('Password').fill(temp);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('heading', { name: 'Choose a new password' })).toBeVisible();
+});
