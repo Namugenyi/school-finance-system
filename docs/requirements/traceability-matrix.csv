@@ -1,0 +1,246 @@
+ID,Source,Requirement,Priority,Release,Module,Entities,UI,Business logic,Tests,Notes / decisions
+FR-101,FRS 3.1,"All controlled vocabularies held in one central reference store, one list per vocabulary.",Mandatory,R1,M02 Setup,"ReferenceList, ReferenceValue",Setup > Reference lists,ReferenceDataService,UT-REF-01; IT-REF-01,"Excel 'one table, common start row' becomes one ReferenceList per vocabulary. PC-02."
+FR-102,FRS 3.1,Every selection control resolves its permitted values from the matching reference list; nothing hard-coded.,Mandatory,R1,M02 Setup,ReferenceValue,All forms (select inputs),ReferenceDataService; API validation of coded fields,IT-REF-02; E2E-01,Server rejects values not in the list (CTL-01).
+FR-103,FRS 3.1,A value added to a reference list is immediately selectable everywhere that vocabulary is used.,Mandatory,R1,M02 Setup,ReferenceValue,Setup > Reference lists,ReferenceDataService (no cache or cache invalidated on write),IT-REF-03; E2E-01,
+FR-104,FRS 3.1,No two vocabularies share a list; a selector never shows values from an unrelated vocabulary.,Mandatory,R1,M02 Setup,"ReferenceList, ReferenceValue (FK + unique(list, value))",-,ReferenceDataService,IT-REF-04,Enforced by schema.
+FR-105,FRS 3.1,"Maintain 16 lists: Academic Year, Term, Section, All Classes, KG Classes, Primary Classes, Fee Items, Mandatory/Optional, Charge Frequency, Payment Method, Payment Status, Pupil Status, Expense Category, Funding Source, Contribution Type, Sex.",Mandatory,R1,M02 Setup,"AcademicYear, Term, Section, Class, FeeItem, ReferenceValue",Setup,ReferenceDataService; seed,IT-REF-05,"Some lists drive logic (Pupil Status, Payment Status, Funding Source, Fee Items 'Arrears B/F'). Those values are system-protected: renamable label, not deletable. A-07. KG/Primary class lists become Class.section. PC-03."
+FR-106,FRS 3.1,"Academic Year is a single four-digit year, not a range.",Mandatory,R1,M02 Setup,"AcademicYear(year INT, 4 digits, unique)",Setup > Academic years,Validation,UT-REF-06,
+FR-107,FRS 3.1,A single Pupil ID Start Year parameter is held centrally and used to build new pupil IDs.,Mandatory,R1,M02 Setup,SchoolSettings.pupilIdStartYear,Setup > School settings,IdGenerator,UT-ID-01,Sequence behaviour when the parameter changes: A-04.
+FR-201,FRS 3.2,"One record per pupil: identity, contact, section, class, enrolment status.",Mandatory,R1,M03 Pupils,Pupil,"Pupils > Register, Detail, Edit",PupilService,IT-PUP-01; E2E-02,
+FR-202,FRS 3.2,"Pupil ID generated automatically as STJA-YYYY-NNNN (YYYY = start-year parameter, NNNN zero-padded sequence).",Mandatory,R1,M03 Pupils,"Pupil.pupilCode (unique), IdSequence",Pupils > New,"IdGenerator (DB sequence/row lock, concurrency-safe)",UT-ID-02; IT-ID-03 (concurrent creates); E2E-02,Immutable once issued. Cap 9999 per prefix: A-04.
+FR-203,FRS 3.2,Pupil ID is independent of any date field; editing DOB or date joined never changes it.,Mandatory,R1,M03 Pupils,Pupil,Pupils > Edit,PupilService (pupilCode not updatable),IT-PUP-02,
+FR-204,FRS 3.2,"Pupil status limited to Active, Withdrawn, Completed, Transferred, Alumni.",Mandatory,R1,M03 Pupils,Pupil.status -> ReferenceValue(Pupil Status),Pupils > Edit / Change status,PupilService,IT-PUP-03,Status change asks for confirmation and writes PupilHistory (WR-29).
+FR-205,FRS 3.2,"Register rows visually differentiated by status (Active green, Withdrawn red).",Desirable,R1,M03 Pupils,-,Pupils > Register (status badge with text),-,E2E-02 (visual check),Colour never the only indicator (WR-26).
+FR-206,FRS 3.2,"Capture guardian name, primary phone, alternative phone, physical address, emergency contact.",Mandatory,R1,M03 Pupils,Pupil (contact fields),Pupils > Edit,Validation (phone format: A-12),IT-PUP-04,Contact data visible only to permitted roles (WR-12).
+FR-207,FRS 3.2,Only Active pupils are eligible for bulk term billing.,Mandatory,R1,M06 Term billing,Pupil.status,Billing > Preview,BillingService,UT-BIL-02; IT-BIL-03; E2E-03,Duplicate of BR-16.
+FR-301,FRS 3.3,Preserve a dated record of each pupil's section and class for every academic year and term attended.,Mandatory,R1,M03 Pupils,"PupilHistory(pupil, year, term, section, class, effectiveFrom)",Pupils > Detail > History tab,"PupilService (history written on create, promotion, class change)",IT-HIS-01,Web writes history automatically; FRS did it by hand (SOP-1.3). A-05.
+FR-302,FRS 3.3,"History records date joined, promotion/class-change date, date left and reason for leaving.",Mandatory,R1,M03 Pupils,"PupilHistory, Pupil.dateLeft, Pupil.leavingReason",Pupils > Change status / Promote,PupilService,IT-HIS-02,Reason for leaving: free text or list? A-06.
+FR-303,FRS 3.3,"History rows retained indefinitely, never overwritten on promotion.",Mandatory,R1,M03 Pupils,PupilHistory (append-only; corrections create a new version with reason),Pupils > History,PupilService; AuditService,IT-HIS-03,CTL-10.
+FR-401,FRS 3.4,"Fee amount definable per unique (academic year, term, section, class, fee item).",Mandatory,R1,M04 Fee structure,"FeeStructure unique(year, term, class, feeItem); section derived from class",Fees > Fee structure grid,FeeStructureService,IT-FEE-01 (duplicate rejected); E2E-01,"Section is implied by class; stored for reporting, validated to match. C-08."
+FR-402,FRS 3.4,Each fee item classified Mandatory or Optional.,Mandatory,R1,M04 Fee structure,FeeItem.defaultMandatory; FeeStructure.isMandatory,Fees > Fee items,FeeStructureService,IT-FEE-02,Held on the fee-structure line (defaulting from the item) so it can differ by class. A-08.
+FR-403,FRS 3.4,"Each fee item carries a charge frequency: Once Only, Every Term, Every Year.",Mandatory,R1,M04 Fee structure,FeeItem.frequency,Fees > Fee items,BillingService uses it: see D-04,UT-BIL-05..07,FRS records frequency but never says how billing uses it. BLOCKING D-04.
+FR-404,FRS 3.4,"Fee item vocabulary: Admission Fees, School Fees, Requirements, School Uniform, Holiday Package, Breakfast and Lunch, Reading Materials, Swimming, Kids Day Out, Afternoon Stay, Boarding Fee, Arrears B/F.",Mandatory,R1,M04 Fee structure,FeeItem (seed),Fees > Fee items,Seed; 'Arrears B/F' is a system item not selectable in the fee structure,IT-FEE-03,Arrears B/F is raised only by carry-forward (BR-20).
+FR-405,FRS 3.4,"Fee amounts in Uganda Shillings, shown with thousands separators and two decimal places.",Mandatory,R1,M01 Shell,"NUMERIC(14,2) money columns",All money displays (formatUGX),Shared money formatter,UT-FMT-01,UGX has no cents in practice; we follow the FRS and show .00. A-03.
+FR-501,FRS 3.5,One charge per billed fee item per pupil per academic year and term.,Mandatory,R1,M05 Charges,"Charge unique(pupil, year, term, feeItem, sourceChargeId)",Charges > Ledger,ChargeService,IT-CHG-01 (duplicate rejected),"Uniqueness breaks for Arrears B/F from several source terms: C-02, D-01."
+FR-502,FRS 3.5,Net Amount Due = Amount Charged - Discount/Waiver (computed).,Mandatory,R1,M05 Charges,"Charge.amountCharged, ChargeDiscount (approved)",Charges > Ledger / Detail,ChargeCalculator (BR-01),UT-CHG-01,Discount approval: D-05. Discount > charge blocked (WR-06).
+FR-503,FRS 3.5,"Total Paid = sum of payments for the same pupil, fee item, year and term (computed).",Mandatory,R1,M05 Charges,PaymentLine.chargeId,Charges > Ledger,ChargeCalculator (BR-02),UT-CHG-02; IT-CHG-02,"Web allocates each payment line to a charge id, which equals the FRS match while charges are unique. C-02."
+FR-504,FRS 3.5,Balance = Net Amount Due - Total Paid (computed).,Mandatory,R1,M05 Charges,-,Charges > Ledger,ChargeCalculator (BR-03),UT-CHG-03,
+FR-505,FRS 3.5,"Status derived: Paid (balance <= 0), Partial (payment exists, balance > 0), Unpaid (no payment).",Mandatory,R1,M05 Charges,-,Charges > Ledger,ChargeCalculator (BR-04..06),"UT-CHG-04..06; E2E-05, E2E-06",Edge: net due 0 (full waiver) with no payment = Paid (BR-04 wins). UT-CHG-07.
+FR-506,FRS 3.5,"Status colour-coded: Paid green, Partial amber, Unpaid red.",Desirable,R1,M05 Charges,-,StatusBadge component (colour + text),-,Visual check,
+FR-507,FRS 3.5,Negative balance presented as a credit and visually distinct from an arrear.,Mandatory,R1,M05 Charges,-,Money cell shows 'CR' / credit style,ChargeCalculator,UT-CHG-08,What can be done with a credit is undefined: A-10.
+FR-508,FRS 3.5,Computed columns visually marked to discourage manual overwrite.,Desirable,R1 (web equivalent),M05 Charges,-,Computed values read-only and styled distinctly,Balance/status never stored as editable fields,IT-CHG-03 (API rejects writes),"Web makes them impossible to edit, which is stronger than the FRS."
+FR-601,FRS 3.6,One record per payment transaction; several partial payments allowed against the same fee item.,Mandatory,R1,M07 Payments,"Payment (receipt header), PaymentLine",Payments > Record payment,PaymentService,"IT-PAY-01; E2E-05, E2E-06",
+FR-602,FRS 3.6,"Capture receipt no., date, pupil ID, year, term, fee item, amount, method, reference no., receiving officer.",Mandatory,R1,M07 Payments,"Payment, PaymentLine",Payments > Record payment,PaymentService,IT-PAY-02,Receiving officer = logged-in user by default. A-11.
+FR-603,FRS 3.6,"Payment method limited to Cash, Mobile Money, Bank Transfer, Cheque.",Mandatory,R1,M07 Payments,ReferenceValue(Payment Method),Payments > Record payment,Validation,IT-PAY-03,
+FR-604,FRS 3.6,Detect and flag a receipt number entered more than once.,Mandatory,R1 (web equivalent),M07 Payments,Payment.receiptNo unique,Payments > Record payment (inline error),PaymentService,IT-PAY-04 (duplicate rejected); AC-10,Web blocks the duplicate instead of flagging it (stronger control). Conflicts with FR-1203 in the FRS: C-01. Receipt number source: D-06.
+FR-605,FRS 3.6,Payments attributable to a specific fee item so status is tracked per item.,Mandatory,R1,M07 Payments,PaymentLine.chargeId,Payments > allocation lines,PaymentService,IT-PAY-05,
+FR-606,FRS 3.6,"Payment dates stored as true dates, displayed DD/MM/YYYY.",Mandatory,R1,M01 Shell,DATE columns,Date inputs and displays,Shared date formatter (Africa/Kampala),UT-FMT-02,
+FR-701,FRS 3.7,"Record every expense: date, year, term, category, description, amount, supplier, method, invoice ref.",Mandatory,R1,M11 Expenses,Expense,Expenses > Register / New,ExpenseService,IT-EXP-01; E2E-10,
+FR-702,FRS 3.7,"Every expense attributed to a funding source: School Funds, Owner Contribution, Owner Loan, Donation, Other.",Mandatory,R1,M11 Expenses,Expense.fundingSource (required),Expenses > New,ExpenseService,IT-EXP-02,CTL-07.
+FR-703,FRS 3.7,Distinguish school-funded from owner-funded expenditure at every reporting level.,Mandatory,R1,M16 Reports,-,"Reports, Dashboard, Expenses register",ReportingService.fundingBucket(),UT-RPT-03; AC-12,Donation and Other fit neither bucket: BLOCKING D-03.
+FR-704,FRS 3.7,Owner-funded rows highlighted.,Desirable,R1,M11 Expenses,-,Expenses register (row tag),-,Visual check,
+FR-705,FRS 3.7,"Expense categories: Rent, Electricity, Water, Salaries, Taxes, District Licenses, Transport, Construction, Food and Drinks, Cooking Charcoal, Repairs and Maintenance, Miscellaneous.",Mandatory,R1,M02 Setup,ReferenceValue(Expense Category) seed,Expenses > New,Seed,IT-EXP-03,'Salaries' is system-protected because payroll posts to it.
+FR-706,FRS 3.7,Each expense records an approving officer (segregation of duties).,Mandatory,R1,M11 Expenses,"Expense.approvedById, ApprovalRecord",Expenses > Approve,ApprovalService (approver != creator),IT-EXP-04; E2E-16,Is approval a workflow gate or a recorded name? D-05.
+FR-801,FRS 3.8,"Record owner contributions typed Cash Contribution, Expense Paid Directly, or Loan.",Mandatory,R1,M12 Owner funds,OwnerContribution(type),Owner funds > Register / New,OwnerFundsService,IT-OWN-01,
+FR-802,FRS 3.8,An Expense Paid Directly contribution links to its expense record by expense ID.,Mandatory,R1,M12 Owner funds,"OwnerContribution.expenseId (FK, unique)",Owner funds > New (pick expense),OwnerFundsService (expense must be owner-funded; one link per expense),IT-OWN-02; E2E-10,"Reports count the expense once, from Expenses (WR-14)."
+FR-803,FRS 3.8,Owner loans recorded separately from contributions so repayable amounts are not income.,Mandatory,R1,M12 Owner funds,OwnerContribution(type=Loan) reported as a liability,Owner funds > Loans view,OwnerFundsService; ReportingService,UT-RPT-05; E2E-11,Loan repayments are not in the FRS: A-15.
+FR-901,FRS 3.9,"Staff register: name, role, department, employment type, monthly basic salary, start date, status.",Mandatory,R1,M13 Payroll,Staff,Payroll > Staff,StaffService,IT-STF-01,Salary visible only to permitted roles (WR-16).
+FR-902,FRS 3.9,Staff ID generated automatically as STF-NNN.,Mandatory,R1,M13 Payroll,"Staff.staffCode unique, IdSequence",Payroll > Staff > New,IdGenerator,UT-ID-04; IT-ID-05,Cap 999.
+FR-903,FRS 3.9,NSSF employee = 5% of monthly basic.,Mandatory,R1,M13 Payroll,StatutoryRateSet (effective-dated),Payroll > Run,PayrollCalculator (BR-08),UT-PAY-01,"Legacy FRS value; Uganda NSSF is normally on gross pay, not basic only. Validate before production: G-03."
+FR-904,FRS 3.9,"NSSF employer = 10% of monthly basic, reported separately as employer cost.",Mandatory,R1,M13 Payroll,PayrollEntry.nssfEmployer,Payroll > Run / Summary,PayrollCalculator (BR-09),UT-PAY-02,Not deducted from net pay. G-03.
+FR-905,FRS 3.9,PAYE computed from progressive bands held as editable thresholds and rates.,Mandatory,R1,M13 Payroll,TaxBand (effective-dated),Setup > Payroll rates,PayrollCalculator.paye(),UT-PAY-03..08 (band edges),See BR-PAYE-1..4. G-03.
+FR-906,FRS 3.9,Net pay = basic - NSSF employee - PAYE - other deductions.,Mandatory,R1,M13 Payroll,PayrollEntry,Payroll > Run,PayrollCalculator (BR-10),UT-PAY-09,
+FR-907,FRS 3.9,"Monthly payroll run for a nominated month and year, with a signature column per staff member.",Mandatory,R1,M13 Payroll,"PayrollPeriod, PayrollRun, PayrollEntry",Payroll > Run > Print,"PayrollService (preview, approve, post)",IT-PAY-10; E2E-12,Printable sheet keeps the signature column.
+FR-908,FRS 3.9,Payroll total postable to Expenses under Salaries.,Mandatory,R1,M13 Payroll,Expense.payrollRunId (unique),Payroll > Run > Post,PayrollService.post() idempotent,IT-PAY-11 (double post rejected); E2E-13,Which amount and which term: BLOCKING D-07.
+FR-1001,FRS 4.1,"Generate proposed charges for a nominated year, term and class.",Mandatory,R1,M06 Term billing,"BillingBatch, BillingBatchLine",Billing > New batch,BillingService.preview(),IT-BIL-01; E2E-03; AC-06,
+FR-1002,FRS 4.1,Proposed charges = every matching fee-structure entry x every Active pupil in the class.,Mandatory,R1,M06 Term billing,"FeeStructure, Pupil",Billing > Preview,BillingService.preview(),UT-BIL-01,Frequency rules may remove rows: D-04.
+FR-1003,FRS 4.1,"Show counts of matching fee items, active pupils and resulting rows before generation.",Mandatory,R1,M06 Term billing,-,Billing > Preview header,BillingService.preview(),IT-BIL-02,
+FR-1004,FRS 4.1,"If either count is zero, show which precondition failed and what to do.",Mandatory,R1,M06 Term billing,-,Billing > Preview (diagnostic panel),BillingService diagnostics,IT-BIL-04; AC-11,"CTL-12, NFR-14."
+FR-1005,FRS 4.1,"Rows reviewable and editable before posting: remove optional items, enter pupil discounts.",Mandatory,R1,M06 Term billing,BillingBatchLine,Billing > Preview grid,BillingService,IT-BIL-05; E2E-04,Mandatory items cannot be removed in preview (A-08). Discounts follow D-05.
+FR-1006,FRS 4.1,Transfer to Charges by copy and paste-values.,Mandatory,R1 (web equivalent),M06 Term billing,Charge.billingBatchId,Billing > Post (confirm dialog),"BillingService.post() in one DB transaction, idempotent",IT-BIL-06 (repeat post creates nothing); IT-BIL-07 (concurrent post),"Replaced by an explicit, validated Post action. PC-01."
+FR-1007,FRS 4.1,Lookup logic implemented as true array formulas.,Mandatory,N/A (Excel-only),-,-,-,Replaced by SQL queries,-,Spreadsheet implementation detail. PC-01.
+FR-1101,FRS 4.2,Identify every charge in a source year/term with a positive balance.,Mandatory,R1,M14 Carry forward,Charge,Carry forward > Select source,CarryForwardService.preview(),UT-CF-01; AC-07,
+FR-1102,FRS 4.2,Present them as proposed charges in a destination year/term with fee item Arrears B/F.,Mandatory,R1,M14 Carry forward,"CarryForwardBatch, Charge(feeItem=Arrears B/F, sourceChargeId)",Carry forward > Preview / Post,CarryForwardService.post(),IT-CF-02; E2E-09,Treatment of the source charge: BLOCKING D-01.
+FR-1103,FRS 4.2,Arrears B/F labelled distinctly from current charges so debt age stays visible.,Mandatory,R1,M14 Carry forward,Charge.sourceChargeId -> origin period,"Statement, Arrears list (origin period column)",-,IT-CF-03,
+FR-1104,FRS 4.2,"Show count examined, count with a balance, and total arrears before transfer.",Mandatory,R1,M14 Carry forward,-,Carry forward > Preview header,CarryForwardService.preview(),IT-CF-04,
+FR-1105,FRS 4.2,"When nothing is found, distinguish 'no charges in source period' from 'all charges settled'.",Mandatory,R1,M14 Carry forward,-,Carry forward > diagnostic panel,CarryForwardService diagnostics,IT-CF-05; AC-11,
+FR-1201,FRS 4.3,Entering a receipt number shows the formatted official receipt.,Mandatory,R1,M08 Receipts,Payment,Receipts > Find / Receipt view,ReceiptService,IT-RCP-01; E2E-07; AC-08,Also opened straight after recording a payment.
+FR-1202,FRS 4.3,"Receipt shows school name, receipt no., date, pupil name and ID, class, guardian, year and term.",Mandatory,R1,M08 Receipts,"SchoolSettings, Payment, Pupil, Charge",Receipt view,ReceiptService,IT-RCP-02,Year/term shown per line when lines span periods. A-13.
+FR-1203,FRS 4.3,"All fee items under one receipt number itemised as separate lines, up to eleven.",Mandatory,R1,M08 Receipts,PaymentLine,Receipt view,ReceiptService,"IT-RCP-03 (12+ lines paginate, none dropped)",No 11-line cap on the web; overflow continues on a second page (WR-11).
+FR-1204,FRS 4.3,"Receipt shows total received, method, reference and receiving officer.",Mandatory,R1,M08 Receipts,Payment,Receipt view,ReceiptService,IT-RCP-04,
+FR-1205,FRS 4.3,Signature blocks for receiving officer and parent/guardian.,Mandatory,R1,M08 Receipts,-,Receipt view (print),-,E2E-07,
+FR-1206,FRS 4.3,Receipt prints on one A4 portrait page.,Mandatory,R1,M08 Receipts,-,Print CSS / PDF,-,E2E-07 (PDF page count = 1 for <= 11 lines),
+FR-1301,FRS 5.1,"Live listing of every pupil: total billed, total paid, outstanding, count of unpaid items.",Mandatory,R1,M09 Arrears,"Charge, PaymentLine (query)",Arrears > List,ArrearsQuery,IT-ARR-01; E2E-09,'Total billed' definition: BLOCKING D-02. 'Unpaid items' = Unpaid + Partial (A-14).
+FR-1302,FRS 5.1,"Filter by academic year and term, or all terms combined.",Mandatory,R1,M09 Arrears,-,Arrears > filters,ArrearsQuery,IT-ARR-02,All-terms view double-counts carried arrears unless D-01 is settled.
+FR-1303,FRS 5.1,Show guardian name and both phone numbers.,Mandatory,R1,M09 Arrears,Pupil,Arrears > List,ArrearsQuery (field-level permission),IT-ARR-03,
+FR-1304,FRS 5.1,Outstanding pupils highlighted red; settled pupils green.,Mandatory,R1,M09 Arrears,-,Arrears > List (badge + text),-,Visual check,
+FR-1305,FRS 5.1,Column filters; prints landscape with repeated header row.,Mandatory,R1,M09 Arrears,-,Arrears > List; print CSS; CSV/PDF export,-,E2E-09,
+FR-1401,FRS 5.2,Entering a pupil ID produces that pupil's full statement of account.,Mandatory,R1,M10 Statements,-,Pupils > Detail > Statement; Statements > Find,StatementQuery,IT-STM-01; E2E-08; AC-09,
+FR-1402,FRS 5.2,"Per fee item: charged, discount, net due, total paid, balance, status.",Mandatory,R1,M10 Statements,Charge,Statement view,StatementQuery + ChargeCalculator,IT-STM-02,
+FR-1403,FRS 5.2,Aggregate charges across all academic years.,Mandatory,R1,M10 Statements,Charge,Statement view,StatementQuery,IT-STM-03,Carried arrears double-count unless D-01 is settled.
+FR-1404,FRS 5.2,"List recent payments: date, receipt no., fee item, amount, method, reference.",Mandatory,R1,M10 Statements,"Payment, PaymentLine",Statement view,StatementQuery,IT-STM-04,"'Recent' undefined; web shows all, newest first, paginated in the UI. A-16."
+FR-1405,FRS 5.2,"Totals billed, paid, outstanding; overall status Paid in Full / Partial / Unpaid.",Mandatory,R1,M10 Statements,-,Statement view,StatementQuery,UT-STM-05,Overall status uses BR-04..06 on pupil totals. A-14.
+FR-1501,FRS 5.3,"For a year/term compute active pupils, billed, collected, outstanding, school-funded, owner-funded, total expenses, surplus/deficit.",Mandatory,R1,M15 Term close,-,Term close > Review,TermCloseService.compute() (shares ReportingService),IT-SNP-01; E2E-15,'Active pupils' for a past term: A-17.
+FR-1502,FRS 5.3,Figures saved to a permanent archive as static values.,Mandatory,R1,M15 Term close,"TermSnapshot (stored values, version)",Term close > Archive,TermCloseService.close(),IT-SNP-02,
+FR-1503,FRS 5.3,Archive records snapshot date and recording officer.,Mandatory,R1,M15 Term close,"TermSnapshot.closedAt, closedById",Term close > Archive,TermCloseService,IT-SNP-03,
+FR-1504,FRS 5.3,Archived results unchanged by later transactions for prior periods.,Mandatory,R1,M15 Term close,TermSnapshot (no update path; DB trigger blocks UPDATE),Snapshots > View,-,IT-SNP-04; E2E-15,Corrections via re-close version (WR-19).
+FR-1601,FRS 5.4,"Report billed, collected, outstanding and collection rate by year and term.",Mandatory,R1,M16 Reports,-,Reports > Collection summary,ReportingService,IT-RPT-01; E2E-14,"D-02 (billed), D-01 (Arrears B/F in billed)."
+FR-1602,FRS 5.4,Report outstanding balances by class.,Mandatory,R1,M16 Reports,Charge.classId (class at billing),Reports > Outstanding by class,ReportingService,IT-RPT-02,"Uses the class on the charge, not the pupil's current class. A-18."
+FR-1603,FRS 5.4,"Report revenue by fee item, covering every fee item.",Mandatory,R1,M16 Reports,-,Reports > Revenue by fee item,ReportingService,IT-RPT-03,Zero rows shown for items with no revenue.
+FR-1604,FRS 5.4,"Report expenditure by category, split school-funded vs owner-funded.",Mandatory,R1,M16 Reports,-,Reports > Expenditure,ReportingService,IT-RPT-04; AC-12,D-03.
+FR-1605,FRS 5.4,Cash-basis income and expenses statement with net surplus or deficit.,Mandatory,R1,M16 Reports,-,Reports > Income & expenses,"ReportingService (BR-12, BR-23)",IT-RPT-05; E2E-14,Carries the cash-basis disclosure (WR-21).
+FR-1606,FRS 5.4,Dashboard headline indicators filtered by one year and term.,Mandatory,R1,M17 Dashboard,-,Dashboard (year/term filter),DashboardQuery (= ReportingService),IT-DSH-01,
+FR-1607,FRS 5.4,"Indicators: active pupils, billed, collected, outstanding, total expenses, school-funded, owner-funded, net result, collection rate.",Mandatory,R1,M17 Dashboard,-,Dashboard KPI cards,DashboardQuery,IT-DSH-02 (reconciles with reports),
+FR-1608,FRS 5.4,Net deficit visually distinct from surplus.,Desirable,R1,M17 Dashboard,-,Dashboard KPI card (sign + label),-,Visual check,
+BR-01,FRS 6.1/6.3,Net Amount Due = Amount Charged - Discount.,Mandatory,R1,M05 Charges,-,-,ChargeCalculator,UT-CHG-01,Discount must be approved to count (D-05).
+BR-02,FRS 6.1/6.3,Total Paid = sum of payments matching pupil + item + year + term.,Mandatory,R1,M05 Charges,-,-,ChargeCalculator,UT-CHG-02,Implemented as sum of non-reversed PaymentLines on the charge. C-02.
+BR-03,FRS 6.1/6.3,Balance = Net Amount Due - Total Paid.,Mandatory,R1,M05 Charges,-,-,ChargeCalculator,UT-CHG-03,
+BR-04,FRS 6.1/6.3,Status Paid when Balance <= 0.,Mandatory,R1,M05 Charges,-,-,ChargeCalculator,UT-CHG-04,
+BR-05,FRS 6.1/6.3,Status Partial when Balance > 0 and Total Paid > 0.,Mandatory,R1,M05 Charges,-,-,ChargeCalculator,UT-CHG-05,
+BR-06,FRS 6.1/6.3,Status Unpaid when Balance > 0 and Total Paid = 0.,Mandatory,R1,M05 Charges,-,-,ChargeCalculator,UT-CHG-06,
+BR-07,FRS 6.1/6.3,Collection Rate = Total Collected / Total Billed.,Mandatory,R1,M16 Reports,-,-,ReportingService,UT-RPT-01 (incl. billed = 0 shows 'n/a'),D-02. Zero denominator: WR-20.
+BR-08,FRS 6.1/6.3,NSSF Employee = Monthly Basic x 5%.,Mandatory,R1,M13 Payroll,-,-,PayrollCalculator,UT-PAY-01,G-03.
+BR-09,FRS 6.1/6.3,NSSF Employer = Monthly Basic x 10%.,Mandatory,R1,M13 Payroll,-,-,PayrollCalculator,UT-PAY-02,G-03.
+BR-10,FRS 6.1/6.3,Net Monthly Pay = Basic - NSSF Employee - PAYE - Other Deductions.,Mandatory,R1,M13 Payroll,-,-,PayrollCalculator,UT-PAY-09,Negative net pay blocked with a validation error (A-19).
+BR-11,FRS 6.1/6.3,Total Expenses = School-Funded + Owner-Funded.,Mandatory,R1,M16 Reports,-,-,ReportingService,UT-RPT-03,Donation/Other not covered: BLOCKING D-03.
+BR-12,FRS 6.1/6.3,Net Surplus/(Deficit) = Total Collected - Total Expenses.,Mandatory,R1,M16 Reports,-,-,ReportingService,UT-RPT-04,Owner contributions and loans are not income (BR-21).
+BR-13,FRS 6.1/6.3,Pupil Identifier = 'STJA-' + StartYear + '-' + Sequence.,Mandatory,R1,M03 Pupils,-,-,IdGenerator,UT-ID-02,
+BR-14,FRS 6.1/6.3,Staff Identifier = 'STF-' + Sequence.,Mandatory,R1,M13 Payroll,-,-,IdGenerator,UT-ID-04,
+BR-15,FRS 6.1/6.3,"Fee Structure entries for year, term and class must exist before bulk billing.",Mandatory,R1,M06 Term billing,-,-,BillingService diagnostics,IT-BIL-04,
+BR-16,FRS 6.1/6.3,Only Active pupils eligible for bulk billing.,Mandatory,R1,M06 Term billing,-,-,BillingService,UT-BIL-02; IT-BIL-03,
+BR-17,FRS 6.1/6.3,Payments must be attributed to a specific fee item; no unallocated receipts.,Mandatory,R1,M07 Payments,-,-,PaymentService,IT-PAY-05,Web requires an existing charge to allocate to (A-09).
+BR-18,FRS 6.1/6.3,Receipt numbers unique across the whole Payments register.,Mandatory,R1,M07 Payments,-,-,PaymentService (DB unique),IT-PAY-04,"C-01, D-06."
+BR-19,FRS 6.1/6.3,A negative balance is a credit and not eligible for carry-forward.,Mandatory,R1,M14 Carry forward,-,-,CarryForwardService,UT-CF-02,
+BR-20,FRS 6.1/6.3,"Arrears carried forward are raised under Arrears B/F, never merged with current charges.",Mandatory,R1,M14 Carry forward,-,-,CarryForwardService,IT-CF-03,
+BR-21,FRS 6.1/6.3,"Owner loans are liabilities, not income; they do not increase surplus.",Mandatory,R1,M12 Owner funds,-,-,ReportingService,UT-RPT-05; E2E-11,
+BR-22,FRS 6.1/6.3,Archived term snapshots are static and never turned back into formulas.,Mandatory,R1,M15 Term close,-,-,TermCloseService,IT-SNP-04,
+BR-23,FRS 6.1/6.3,"Cash basis: income recognised when received, expenditure when paid.",Mandatory,R1,M16 Reports,-,-,ReportingService,IT-RPT-05,Which date drives the period for payments: A-20.
+BR-24,FRS 6.1/6.3,Every reference value must be added in Setup; free typing into a coded field is rejected.,Mandatory,R1,M02 Setup,-,-,API validation,IT-REF-02,
+BR-PAYE-1,FRS 6.2,"PAYE band 1: monthly income up to UGX 235,000 taxed at 0%.",Mandatory,R1,M13 Payroll,TaxBand (effective-dated),Setup > Payroll rates,PayrollCalculator.paye(),UT-PAY-03..08,"Legacy FRS bands. We believe current Ugandan law adds 10% on monthly income above UGX 10,000,000, which the FRS omits (inferred, to be verified). G-03."
+BR-PAYE-2,FRS 6.2,"PAYE band 2: 235,001-335,000 at 10% of the excess over 235,000.",Mandatory,R1,M13 Payroll,TaxBand (effective-dated),Setup > Payroll rates,PayrollCalculator.paye(),UT-PAY-03..08,"Legacy FRS bands. We believe current Ugandan law adds 10% on monthly income above UGX 10,000,000, which the FRS omits (inferred, to be verified). G-03."
+BR-PAYE-3,FRS 6.2,"PAYE band 3: 335,001-410,000 = band 2 tax + 20% of the excess over 335,000.",Mandatory,R1,M13 Payroll,TaxBand (effective-dated),Setup > Payroll rates,PayrollCalculator.paye(),UT-PAY-03..08,"Legacy FRS bands. We believe current Ugandan law adds 10% on monthly income above UGX 10,000,000, which the FRS omits (inferred, to be verified). G-03."
+BR-PAYE-4,FRS 6.2,"PAYE band 4: above 410,000 = band 3 tax + 30% of the excess over 410,000.",Mandatory,R1,M13 Payroll,TaxBand (effective-dated),Setup > Payroll rates,PayrollCalculator.paye(),UT-PAY-03..08,"Legacy FRS bands. We believe current Ugandan law adds 10% on monthly income above UGX 10,000,000, which the FRS omits (inferred, to be verified). G-03."
+DD-PUP,FRS 7,"Pupils columns A-N (ID, name, sex, DOB, date joined, section, class, status, guardian, phones, address, emergency contact, notes).",Mandatory,R1,M03 Pupils,Pupil,-,-,IT schema tests,"Columns C/F (Charges), E (Payments), F/H/J (Expenses) are omitted from the FRS dictionary; inferred from the FR text. Manual 'sequence' IDs become system-generated (A-02)."
+DD-CHG,FRS 7,"Charges columns A-O (charge ID, pupil, year, term, class, fee item, charged, discount, net due, due date, total paid, balance, status).",Mandatory,R1,M05 Charges,Charge,-,-,IT schema tests,"Columns C/F (Charges), E (Payments), F/H/J (Expenses) are omitted from the FRS dictionary; inferred from the FR text. Manual 'sequence' IDs become system-generated (A-02)."
+DD-PAY,FRS 7,"Payments columns A-N (payment ID, receipt no., date, pupil, year, term, fee item, amount, method, ref, by, notes, duplicate flag).",Mandatory,R1,M07 Payments,"Payment, PaymentLine",-,-,IT schema tests,"Columns C/F (Charges), E (Payments), F/H/J (Expenses) are omitted from the FRS dictionary; inferred from the FR text. Manual 'sequence' IDs become system-generated (A-02)."
+DD-EXP,FRS 7,"Expenses columns A-L (expense ID, date, year, term, category, description, amount, supplier, method, invoice ref, funding source, approved by).",Mandatory,R1,M11 Expenses,Expense,-,-,IT schema tests,"Columns C/F (Charges), E (Payments), F/H/J (Expenses) are omitted from the FRS dictionary; inferred from the FR text. Manual 'sequence' IDs become system-generated (A-02)."
+NFR-01,FRS 8,Runs in Excel 2016+ and opens in Google Sheets.,Mandatory,N/A (Excel-only),-,-,-,"Replaced: supported browsers = current Chrome, Edge, Firefox, Safari (A-21).",-,
+NFR-02,FRS 8,Lookups use cross-version functions as true array formulas.,Mandatory,N/A (Excel-only),-,-,-,Spreadsheet detail. PC-01.,-,
+NFR-03,FRS 8,No merged-cell or number-format corruption; opens without repair prompts.,Mandatory,R1 (web equivalent),M01 Shell,-,-,Web equivalent: app starts with migrations applied and no startup errors.,Smoke test,
+NFR-04,FRS 8,"Full calculation on load, no stale cached values.",Mandatory,R1 (web equivalent),M05 Charges,-,-,"Balances computed from transactions at query time (or in the same transaction), never cached stale.",IT-CHG-04,
+NFR-05,FRS 8,Input cells shaded yellow; computed cells visually distinct.,Mandatory,R1 (web equivalent),M01 Shell,-,-,Design system: editable inputs vs read-only computed values clearly styled (yellow not required).,Visual check,
+NFR-06,FRS 8,Header rows frozen.,Mandatory,R1 (web equivalent),M01 Shell,-,-,Sticky table headers on registers.,Visual check,
+NFR-07,FRS 8,"Home sheet with hyperlinks to every worksheet, grouped by section.",Mandatory,R1 (web equivalent),M01 Shell,-,-,"Persistent side navigation grouped Entry / Operations / Reports, plus Home.",E2E smoke,
+NFR-08,FRS 8,Tab colours encode section.,Mandatory,R1 (web equivalent),M01 Shell,-,-,Navigation groups may carry a section accent.,Visual check,
+NFR-09,FRS 8,"Arrears List, Receipt, Statement, Snapshots have print areas, page-fit and repeated headers.",Mandatory,R1,"M08-M10, M15",-,-,Print stylesheets and PDF export.,"E2E-07, E2E-08, E2E-09",
+NFR-10,FRS 8,Currency in UGX with thousands separators; dates DD/MM/YYYY.,Mandatory,R1,M01 Shell,-,-,Shared formatters.,"UT-FMT-01, UT-FMT-02; AC-04",
+NFR-11,FRS 8,"Capacity: 500 pupils, 1,000 charges, 2,000 payments, 1,000 expenses, 50 staff.",Mandatory,R1,All,-,-,Treated as a floor. Performance target tested at 10x (A-22).,PERF-01,
+NFR-12,FRS 8,"Reference lists extensible by appending a value, no other change needed.",Mandatory,R1,M02 Setup,-,-,ReferenceDataService.,IT-REF-03,
+NFR-13,FRS 8,"Standard functions only; no macros, VBA or add-ins.",Mandatory,N/A (Excel-only),-,-,-,Superseded by the web stack.,-,
+NFR-14,FRS 8,Workflow screens show a status message explaining an empty result set.,Mandatory,R1,"M06, M14, M15",-,-,Diagnostic panels.,"IT-BIL-04, IT-CF-05; AC-11",
+CTL-01,FRS 9,Reference data integrity: list validation on all coded fields; free text rejected.,Mandatory,R1,M02 Setup,-,-,API validation + FKs,IT-REF-02,
+CTL-02,FRS 9,Identifier uniqueness: generated pupil and staff IDs.,Mandatory,R1,"M03, M13",-,-,IdGenerator + unique constraints,"IT-ID-03, IT-ID-05",
+CTL-03,FRS 9,Duplicate receipt: flag and highlight.,Mandatory,R1,M07 Payments,-,-,Unique constraint (blocks),IT-PAY-04; AC-10,
+CTL-04,FRS 9,"Balance accuracy: balances computed, never keyed.",Mandatory,R1,M05 Charges,-,-,ChargeCalculator,IT-CHG-03,
+CTL-05,FRS 9,Overdue visibility: formatting on status and balance.,Mandatory,R1,"M05, M09",-,-,Status badges,Visual check,
+CTL-06,FRS 9,Credit identification: negative balances distinguished.,Mandatory,R1,M05 Charges,-,-,Money cell credit style,UT-CHG-08,
+CTL-07,FRS 9,Funding attribution: funding source mandatory on every expense.,Mandatory,R1,M11 Expenses,-,-,Required field,IT-EXP-02,
+CTL-08,FRS 9,Expenditure approval: Approved By on every expense.,Mandatory,R1,M11 Expenses,-,-,ApprovalService,IT-EXP-04,
+CTL-09,FRS 9,Historical immutability: snapshots stored as static values.,Mandatory,R1,M15 Term close,-,-,No update path + DB trigger,IT-SNP-04,
+CTL-10,FRS 9,Lifecycle audit trail: Pupil History keeps prior placements.,Mandatory,R1,M03 Pupils,-,-,Append-only history,IT-HIS-03,
+CTL-11,FRS 9,Owner subsidy visibility: owner-funded expenses highlighted and reported separately.,Mandatory,R1,"M11, M16",-,-,ReportingService,AC-12,
+CTL-12,FRS 9,Precondition validation: workflows block on zero matches with a diagnostic.,Mandatory,R1,"M06, M14",-,-,Diagnostics,"IT-BIL-04, IT-CF-05",
+SOP-1.1,FRS 10,Term opening: confirm the academic year exists; add it if new.,Mandatory,R1,M02 Setup,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-1.2,FRS 10,Enrol new pupils; update class for promoted pupils; set status for leavers.,Mandatory,R1,M03 Pupils,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-1.3,FRS 10,Record the class change for each promoted pupil in history.,Mandatory,R1,"M03 Pupils (automatic, A-05)",-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-1.4,FRS 10,"Enter fee amounts per item, per class, for the new term.",Mandatory,R1,"M04 Fee structure (copy-from-previous-term helper, A-23)",-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-1.5,FRS 10,"Select year, term, class; confirm counts are non-zero.",Mandatory,R1,M06 Term billing,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-1.6,FRS 10,Review rows; remove optional items not taken; enter discounts.,Mandatory,R1,M06 Term billing,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-1.7,FRS 10,Paste values into Charges; assign charge IDs and due dates.,Mandatory,R1,M06 Term billing (Post; IDs automatic; due date set on batch),-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-1.8,FRS 10,Repeat for each remaining class.,Mandatory,R1,M06 Term billing (FUT-08 would remove this),-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-1.9,FRS 10,Carry unpaid balances from the previous term as Arrears B/F.,Mandatory,R1,M14 Carry forward,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-2.1,FRS 10,Daily collection: record the payment.,Mandatory,R1,M07 Payments,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-2.2,FRS 10,Confirm the duplicate warning is clear.,Mandatory,R1,M07 Payments (blocked automatically),-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-2.3,FRS 10,Enter receipt number and print the receipt.,Mandatory,R1,M08 Receipts (opens after save),-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-2.4,FRS 10,Confirm charge status updated to Partial or Paid.,Mandatory,R1,M05 Charges (shown on save),-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-3.1,FRS 10,Weekly follow-up: filter arrears by year/term; sort by balance descending.,Mandatory,R1,M09 Arrears,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-3.2,FRS 10,Print the listing for phone follow-up.,Mandatory,R1,M09 Arrears,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-3.3,FRS 10,Print a pupil statement where needed.,Mandatory,R1,M10 Statements,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-4.1,FRS 10,Term close: confirm all payments and expenses captured.,Mandatory,R1,M15 Term close (readiness checklist),-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-4.2,FRS 10,Post the payroll total for the term under Salaries.,Mandatory,R1,M13 Payroll (D-07),-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-4.3,FRS 10,Select year/term; verify computed figures.,Mandatory,R1,M15 Term close,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-4.4,FRS 10,Paste values into the archive.,Mandatory,R1,M15 Term close (Close action),-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-4.5,FRS 10,Record snapshot date and officer.,Mandatory,R1,M15 Term close (automatic),-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-4.6,FRS 10,"Review collection rate, revenue by item, income and expenses.",Mandatory,R1,M16 Reports,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SOP-4.7,FRS 10,Carry unpaid balances into the next term.,Mandatory,R1,M14 Carry forward,-,Guided workflow,-,E2E (see summary 6),Becomes a guided workflow and the user guide.
+SCP-EX-01,FRS 1.4,"Academic records (marks, grades, report cards, attendance) excluded.",-,Out of scope,-,-,-,-,-,
+SCP-EX-02,FRS 1.4,No automated bank or mobile money integration; payments entered manually.,-,Out of scope,-,-,-,-,-,
+SCP-EX-03,FRS 1.4,No multi-user concurrent editing with record locking.,-,Superseded,-,-,-,-,-,Web app must be multi-user safe (WR-23). PC-04.
+SCP-EX-04,FRS 1.4,No statutory return filing to URA or NSSF.,-,Out of scope,-,-,-,-,-,
+SCP-EX-05,FRS 1.4,No fixed asset register or depreciation.,-,Out of scope,-,-,-,-,-,
+SCP-EX-06,FRS 1.4,"No accrual general ledger, trial balance or statutory statements.",-,Out of scope,-,-,-,-,-,Disclosed on reports (WR-21).
+ASM-01,FRS 11.1,Three terms per academic year.,-,R1,M02 / M13,-,-,-,-,"Terms are reference data; seed 3 per year, not hard-coded."
+ASM-02,FRS 11.1,Academic year is a single four-digit year.,-,R1,M02 / M13,-,-,-,-,FR-106.
+ASM-03,FRS 11.1,Two sections: Kindergarten and Primary.,-,R1,M02 / M13,-,-,-,-,Seeded; Section list stays editable.
+ASM-04,FRS 11.1,All amounts in UGX.,-,R1,M02 / M13,-,-,-,-,"Single currency, no FX."
+ASM-05,FRS 11.1,One administrator maintains the workbook at a time.,-,R1,M02 / M13,-,-,-,-,Superseded by multi-user (PC-04).
+ASM-06,FRS 11.1,NSSF stays at 5% / 10%.,-,R1,M02 / M13,-,-,-,-,Rates effective-dated and editable (WR-17).
+ASM-07,FRS 11.1,PAYE thresholds maintained manually when rates change.,-,R1,M02 / M13,-,-,-,-,Setup > Payroll rates (WR-17).
+CON-01,FRS 11.2,Single-user file; no concurrent editing.,-,R1,-,-,-,-,-,Superseded (PC-04).
+CON-02,FRS 11.2,Cash basis only; no accrual ledger.,-,R1,-,-,-,-,-,Kept (BR-23).
+CON-03,FRS 11.2,Billing and carry-forward one class/period at a time with manual paste-values for review.,-,R1,-,-,-,-,-,Kept as preview + explicit Post (PC-01).
+CON-04,FRS 11.2,Bank and mobile money reconciliation is manual.,-,R1,-,-,-,-,-,Kept; FUT-04 later.
+CON-05,FRS 11.2,Capacity limited by pre-formatted rows (NFR-11).,-,R1,-,-,-,-,-,Superseded: no row limits.
+FUT-01,FRS 11.3,Aged debt analysis at 30/60/90/90+ days.,Future,Future,-,-,-,-,-,
+FUT-02,FRS 11.3,Discount and bursary register with approval trail.,Future,R1 (approval trail only),-,-,-,-,-,The build brief brings the discount approval trail into R1 (WR-05); a full bursary register stays future.
+FUT-03,FRS 11.3,Petty cash register with float reconciliation.,Future,Future,-,-,-,-,-,
+FUT-04,FRS 11.3,Bank and mobile money reconciliation.,Future,Future,-,-,-,-,-,
+FUT-05,FRS 11.3,Budget versus actual by term.,Future,Future,-,-,-,-,-,
+FUT-06,FRS 11.3,Instalment payment plan register.,Future,Future,-,-,-,-,-,
+FUT-07,FRS 11.3,Enrolment trend analysis.,Future,Future,-,-,-,-,-,
+FUT-08,FRS 11.3,Consolidated multi-class billing in one pass.,Future,Future,-,-,-,-,-,Cheap on the web; candidate for R1 once single-class billing is proven.
+AC-01,FRS 11.4,Opens without repair prompt.,Mandatory,R1,QA,-,-,-,Smoke,"Web: app builds, migrates and starts cleanly."
+AC-02,FRS 11.4,All 18 worksheets present and ordered by section.,Mandatory,R1,QA,-,-,-,E2E smoke,"Web: every module in the navigation (module map, summary 4)."
+AC-03,FRS 11.4,Every dropdown resolves to Setup and only its own list.,Mandatory,R1,QA,-,-,-,"IT-REF-02, IT-REF-04",
+AC-04,FRS 11.4,Currency and DD/MM/YYYY formatting.,Mandatory,R1,QA,-,-,-,"UT-FMT-01, UT-FMT-02",
+AC-05,FRS 11.4,Charge balances and statuses compute from Payments.,Mandatory,R1,QA,-,-,-,"IT-CHG-02; E2E-05, E2E-06",
+AC-06,FRS 11.4,Term Billing proposes rows for a valid selection.,Mandatory,R1,QA,-,-,-,IT-BIL-01; E2E-03,
+AC-07,FRS 11.4,Carry Forward finds positive balances in the source period.,Mandatory,R1,QA,-,-,-,UT-CF-01; E2E-09,
+AC-08,FRS 11.4,Receipt fills from a receipt number.,Mandatory,R1,QA,-,-,-,IT-RCP-01; E2E-07,
+AC-09,FRS 11.4,Statement aggregates all charges and payments for a pupil.,Mandatory,R1,QA,-,-,-,IT-STM-03; E2E-08,
+AC-10,FRS 11.4,Duplicate receipt numbers flagged.,Mandatory,R1,QA,-,-,-,IT-PAY-04,Web blocks them.
+AC-11,FRS 11.4,Workflow screens show diagnostics on empty results.,Mandatory,R1,QA,-,-,-,"IT-BIL-04, IT-CF-05",
+AC-12,FRS 11.4,Owner-funded and school-funded expenditure reported separately.,Mandatory,R1,QA,-,-,-,IT-RPT-04,
+WR-01,Build brief,"Role-based access: Administrator, Bursar, Head Teacher, Proprietor, Auditor; roles and permissions configurable; enforced on the server.",Mandatory,R1,M18 Security,"User, Role, Permission, UserRoleAssignment",-,"AuthService, PermissionGuard",IT-SEC-01; E2E-16,Starting permission matrix is a thread 2 deliverable.
+WR-02,Build brief,Segregation of duties: nobody approves their own transaction where a second person is required.,Mandatory,R1,M18 Security,ApprovalRecord,-,ApprovalService,IT-SEC-02,Which actions need a second person: D-05.
+WR-03,Build brief,"Secure authentication and sessions, password hashing, CSRF protection, rate limiting on sensitive endpoints.",Mandatory,R1,M18 Security,"User, Session",-,AuthService,IT-SEC-03..05,
+WR-04,Build brief,"Audit log of sensitive and financial actions: actor, action, entity, time, reason, before/after.",Mandatory,R1,M18 Security,AuditLog,-,AuditService,IT-AUD-01,
+WR-05,Build brief,"Discounts and waivers carry an approval trail: reason, amount, authoriser, timestamp.",Mandatory,R1,M05 Charges,"ChargeDiscount, ApprovalRecord",-,DiscountService,IT-DSC-01,D-05.
+WR-06,Build brief,Discount may not exceed the amount charged unless an authorised policy allows it.,Mandatory,R1,M05 Charges,ChargeDiscount,-,DiscountService,UT-DSC-02,"Default: discount up to 100% allowed, above blocked (A-10)."
+WR-07,Build brief,"Bulk billing checks duplicates, needs explicit confirmation, is idempotent, and reports created/skipped/failed.",Mandatory,R1,M06 Term billing,BillingBatch (idempotency key),-,BillingService,"IT-BIL-06, IT-BIL-07",
+WR-08,Build brief,"Billing respects charge frequency (once-only, yearly, termly) with defined, tested behaviour.",Mandatory,R1,M06 Term billing,"Charge, FeeItem",-,BillingService,UT-BIL-05..07,BLOCKING D-04.
+WR-09,Build brief,"Controlled payment reversal/correction recording reason, authoriser, original and reversal.",Mandatory,R1,M07 Payments,"PaymentReversal, ApprovalRecord",-,PaymentService.reverse(),IT-PAY-06; UT-CHG-09,Posted payments never edited or deleted.
+WR-10,Build brief,"Search and filter payments by pupil, receipt, date range, year, term, method, officer.",Mandatory,R1,M07 Payments,Indexes,-,PaymentQuery,IT-PAY-07,
+WR-11,Build brief,Receipts with more than 11 lines handled without dropping items; PDF export; posted receipts not editable.,Mandatory,R1,M08 Receipts,-,-,ReceiptService,IT-RCP-03,
+WR-12,Build brief,Arrears filters by class and amount; export; contact details protected by role.,Mandatory,R1,M09 Arrears,-,-,ArrearsQuery,IT-ARR-04,
+WR-13,Build brief,Statements printable/PDF and reconcile to underlying records; show charge date and due date.,Mandatory,R1,M10 Statements,-,-,StatementQuery,IT-STM-06,
+WR-14,Build brief,"Expenses: review/approval, duplicate invoice warning, filters, export; never double-counted via owner or payroll links.",Mandatory,R1,M11 Expenses,Expense,-,ExpenseService,"IT-EXP-05, IT-EXP-06",
+WR-15,Build brief,"Reports for owner contributions, loans received and owner-funded expenditure.",Mandatory,R1,M12 Owner funds,-,-,ReportingService,IT-RPT-06,
+WR-16,Build brief,"Payroll run with preview, validation, authorisation and posting; payslip view; salary data restricted.",Mandatory,R1,M13 Payroll,"PayrollRun, PayrollEntry",-,PayrollService,IT-PAY-10..12,
+WR-17,Build brief,Tax and NSSF rates configurable and effective-dated; production payroll gated until rules are validated.,Mandatory,R1,M13 Payroll,"StatutoryRateSet, TaxBand",-,PayrollCalculator,UT-PAY-10,G-03.
+WR-18,Build brief,Carry-forward keeps references to source charges and blocks carrying the same arrear twice into a destination.,Mandatory,R1,M14 Carry forward,Charge.sourceChargeId (unique per destination),-,CarryForwardService,IT-CF-06,D-01.
+WR-19,Build brief,"Term close checks readiness, lists exceptions, and supports a versioned re-close that keeps the original snapshot.",Mandatory,R1,M15 Term close,"TermSnapshot(version, supersedes)",-,TermCloseService,IT-SNP-05,Whether closing a term also locks new postings to it: A-24.
+WR-20,Build brief,Collection rate handles zero billed safely.,Mandatory,R1,M16 Reports,-,-,ReportingService,UT-RPT-01,Shows 'n/a'.
+WR-21,Build brief,Reports disclose cash basis and the absence of a full general ledger.,Mandatory,R1,M16 Reports,-,-,-,Visual check,
+WR-22,Build brief,"Dashboard charts use real data, follow the filter, reconcile to reports, and have empty states.",Mandatory,R1,M17 Dashboard,-,-,DashboardQuery,IT-DSH-02,
+WR-23,Build brief,"Safe multi-user operation via transactions, unique constraints and concurrency controls.",Mandatory,R1,All,-,-,-,"IT-BIL-07, IT-ID-03, IT-PAY-08",PC-04.
+WR-24,Build brief,Decimal money types; Africa/Kampala timezone; DD/MM/YYYY.,Mandatory,R1,M01 Shell,"NUMERIC(14,2)",-,-,UT-FMT-*,A-03.
+WR-25,Build brief,No cascade deletion of financial history; soft deactivation for retained records.,Mandatory,R1,All,FK ON DELETE RESTRICT,-,-,IT-DB-01,
+WR-26,Build brief,Responsive layout; WCAG 2.2 AA where practical; colour never the only indicator.,Mandatory,R1,M01 Shell,-,-,-,a11y checks,
+WR-27,Build brief,"Backups, restore, deployment, logging and monitoring documented.",Mandatory,R1,Ops,-,-,-,Restore drill,Hosting choice: G-04.
+WR-28,Build brief,Server-side pagination and filtering; measured performance targets.,Mandatory,R1,All,Indexes,-,-,PERF-01,
+WR-29,Build brief,Confirmation and validation for status changes and history corrections.,Mandatory,R1,M03 Pupils,PupilHistory,-,PupilService,IT-HIS-04,
+WR-30,Build brief,"App shell with navigation, breadcrumbs, search, notifications, profile.",Mandatory,R1,M01 Shell,-,-,-,E2E smoke,
+WR-31,Build brief,"Synthetic seed data only, clearly marked as demo.",Mandatory,R1,Ops,-,-,Seed script,-,
+WR-32,Build brief,Payroll summary reports.,Mandatory,R1,M16 Reports,-,-,ReportingService,IT-RPT-07,
+WR-33,Build brief,Charges carry created/modified metadata.,Mandatory,R1,M05 Charges,"Charge.createdBy/At, updatedBy/At",-,-,IT-CHG-05,
