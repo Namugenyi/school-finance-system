@@ -71,11 +71,14 @@ export async function login(username: string): Promise<Client> {
 let keySeq = 0;
 export const key = () => `test-key-${Date.now()}-${++keySeq}`;
 
-/** The parent or guardian details every new pupil needs. */
-export const GUARDIAN = { guardianName: 'Test Guardian', guardianRelationship: 'MOTHER', phonePrimary: '0772123456', address: 'Kasangati, Wakiso' };
+/** The parent or guardian and emergency contact details every new pupil needs. */
+export const GUARDIAN = {
+  guardianName: 'Test Guardian', guardianRelationship: 'MOTHER', phonePrimary: '0772123456', address: 'Kasangati, Wakiso',
+  emergencyName: 'Test Aunt', emergencyRelationship: 'AUNT_UNCLE', emergencyPhone: '0701123456',
+};
 
 export async function createPupil(c: Client, w: World, name: string, classId = w.classes.p1, extra: object = {}) {
-  const res = await c.post('/api/pupils', { fullName: name, sex: 'FEMALE', dateJoined: '2026-01-20', classId, guardianName: `Parent of ${name}`, guardianRelationship: 'MOTHER', phonePrimary: '0772123456', address: 'Kasangati, Wakiso', ...extra });
+  const res = await c.post('/api/pupils', { fullName: name, sex: 'FEMALE', dateJoined: '2026-01-20', classId, ...GUARDIAN, guardianName: `Parent of ${name}`, ...extra });
   if (res.status !== 200) throw new Error(JSON.stringify(res.body));
   return res.body as { id: number; pupilCode: string };
 }

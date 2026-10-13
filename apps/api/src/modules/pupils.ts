@@ -44,12 +44,18 @@ const pupilFields = {
   notes: optionalText(1000),
 };
 
-/** The parent or guardian's name, relationship, primary telephone and address are required (alternative phone is not). */
+/**
+ * The parent or guardian's name, relationship, primary telephone and address are required (alternative phone is not),
+ * and so are the emergency contact's name, relationship and telephone.
+ */
 const GUARDIAN_REQUIRED = [
   ['guardianName', 'Parent / guardian name'],
   ['guardianRelationship', "Guardian's relationship to pupil"],
   ['phonePrimary', 'Primary telephone'],
   ['address', 'Physical address'],
+  ['emergencyName', 'Emergency contact name'],
+  ['emergencyRelationship', "Emergency contact's relationship to pupil"],
+  ['emergencyPhone', 'Emergency contact telephone'],
 ] as const;
 
 /**

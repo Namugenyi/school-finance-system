@@ -87,11 +87,11 @@ describe('pupil register (FR-201 to FR-207)', () => {
     expect(new Set(codes).size).toBe(12);
   });
 
-  it('requires the parent or guardian name, relationship, primary phone and address, but not the alternative phone', async () => {
+  it('requires the parent or guardian name, relationship, primary phone and address, and the emergency contact, but not the alternative phone', async () => {
     const base = { fullName: 'Guardian Check', sex: 'MALE', dateJoined: '2026-01-10', classId: w.classes.p1 };
     const none = await bursar.post('/api/pupils', base);
     expect(none.status).toBe(400);
-    expect(none.body.error.message).toBe("Parent / guardian name, Guardian's relationship to pupil, Primary telephone, Physical address are required");
+    expect(none.body.error.message).toBe("Parent / guardian name, Guardian's relationship to pupil, Primary telephone, Physical address, Emergency contact name, Emergency contact's relationship to pupil, Emergency contact telephone are required");
     for (const k of Object.keys(GUARDIAN)) {
       const res = await bursar.post('/api/pupils', { ...base, ...GUARDIAN, [k]: '  ' });
       expect(res.status, k).toBe(400);
@@ -100,15 +100,16 @@ describe('pupil register (FR-201 to FR-207)', () => {
     expect(ok.status).toBe(200);
     // An edit cannot blank a required field, but can leave out fields it isn't changing.
     expect((await bursar.patch(`/api/pupils/${ok.body.id}`, { address: '' })).status).toBe(400);
+    expect((await bursar.patch(`/api/pupils/${ok.body.id}`, { emergencyPhone: '' })).status).toBe(400);
     expect((await bursar.patch(`/api/pupils/${ok.body.id}`, { notes: 'Fine' })).status).toBe(200);
   });
 
   it('lets an older pupil with blank guardian details be completed through an edit', async () => {
-    const p = await prisma.pupil.update({ where: { id: (await bursar.post('/api/pupils', { ...GUARDIAN, fullName: 'Legacy Pupil', sex: 'MALE', dateJoined: '2026-01-10', classId: w.classes.p1 })).body.id }, data: { guardianName: null, guardianRelationship: null, address: null } });
-    expect((await bursar.patch(`/api/pupils/${p.id}`, { fullName: 'Legacy Pupil', guardianName: '', guardianRelationship: '', address: '' })).status).toBe(400);
-    const done = await bursar.patch(`/api/pupils/${p.id}`, { fullName: 'Legacy Pupil', guardianName: 'Now Known', guardianRelationship: 'FATHER', address: 'Gayaza' });
+    const p = await prisma.pupil.update({ where: { id: (await bursar.post('/api/pupils', { ...GUARDIAN, fullName: 'Legacy Pupil', sex: 'MALE', dateJoined: '2026-01-10', classId: w.classes.p1 })).body.id }, data: { guardianName: null, guardianRelationship: null, address: null, emergencyName: null, emergencyRelationship: null, emergencyPhone: null } });
+    expect((await bursar.patch(`/api/pupils/${p.id}`, { fullName: 'Legacy Pupil', guardianName: '', guardianRelationship: '', address: '', emergencyName: '', emergencyRelationship: '', emergencyPhone: '' })).status).toBe(400);
+    const done = await bursar.patch(`/api/pupils/${p.id}`, { fullName: 'Legacy Pupil', guardianName: 'Now Known', guardianRelationship: 'FATHER', address: 'Gayaza', emergencyName: 'Uncle Known', emergencyRelationship: 'AUNT_UNCLE', emergencyPhone: '0701555666' });
     expect(done.status).toBe(200);
-    expect(done.body).toMatchObject({ guardianName: 'Now Known', guardianRelationship: 'FATHER', address: 'Gayaza' });
+    expect(done.body).toMatchObject({ guardianName: 'Now Known', guardianRelationship: 'FATHER', address: 'Gayaza', emergencyName: 'Uncle Known', emergencyPhone: '0701555666' });
   });
 
   it('validates Ugandan phone numbers (A-12)', async () => {

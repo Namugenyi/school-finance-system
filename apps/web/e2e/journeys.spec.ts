@@ -317,6 +317,10 @@ test('the register-pupil form explains problems beside each field and tidies dat
   await page.getByLabel('Parent / guardian name').fill('Grace Form Check');
   await page.getByLabel("Guardian's relationship to pupil").selectOption({ label: 'Mother' });
   await page.getByLabel('Physical address').fill('Gayaza, Wakiso');
+  await expect(page.locator('.field-error', { hasText: 'Enter the emergency contact’s name' })).toBeVisible();
+  await page.getByLabel('Emergency contact name').fill('Peter Form Check');
+  await page.getByLabel("Emergency contact's relationship to pupil").selectOption({ label: 'Grandparent' });
+  await page.getByLabel('Emergency contact telephone').fill('0701 234 567');
   await page.getByRole('button', { name: 'Register pupil' }).click();
   await expect(page.getByRole('heading', { name: 'Brian Form Check' })).toBeVisible();
   await expect(page.getByText('05/02/2019')).toBeVisible();

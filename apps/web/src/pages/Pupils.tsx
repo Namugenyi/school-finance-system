@@ -131,7 +131,10 @@ export function PupilFormPage() {
     else if (form.guardianRelationship === OTHER && !form.guardianRelationshipOther.trim()) e.guardianRelationshipOther = 'Type the relationship';
     if (!form.phonePrimary.trim()) e.phonePrimary = 'Enter a telephone number for the parent or guardian';
     if (!form.address.trim()) e.address = 'Enter where the family lives';
-    if (form.emergencyRelationship === OTHER && !form.emergencyRelationshipOther.trim()) e.emergencyRelationshipOther = 'Type the relationship';
+    if (!form.emergencyName.trim()) e.emergencyName = 'Enter the emergency contact’s name';
+    if (!form.emergencyRelationship) e.emergencyRelationship = 'Choose how they are related to the pupil';
+    else if (form.emergencyRelationship === OTHER && !form.emergencyRelationshipOther.trim()) e.emergencyRelationshipOther = 'Type the relationship';
+    if (!form.emergencyPhone.trim()) e.emergencyPhone = 'Enter a telephone number for the emergency contact';
     for (const k of ['phonePrimary', 'phoneAlt', 'emergencyPhone'] as const) {
       const problem = phoneProblem(form[k]);
       if (problem && !e[k]) e[k] = problem;
@@ -167,6 +170,7 @@ export function PupilFormPage() {
   const err = (k: keyof typeof emptyForm) => errors[k] ?? null;
   const loaded = existing.data;
   const guardianIncomplete = editing && !!loaded && !(loaded.guardianName && loaded.guardianRelationship && loaded.phonePrimary && loaded.address);
+  const emergencyIncomplete = editing && !!loaded && !(loaded.emergencyName && loaded.emergencyRelationship && loaded.emergencyPhone);
   const problems = Object.entries(errors).filter(([, v]) => v) as Array<[keyof typeof emptyForm, string]>;
   const phoneProps = (k: 'phonePrimary' | 'phoneAlt' | 'emergencyPhone') => ({
     value: form[k], type: 'tel', inputMode: 'tel' as const, autoComplete: 'off', maxLength: 20, error: err(k),
@@ -182,6 +186,7 @@ export function PupilFormPage() {
     fullName: 'Full name', sex: 'Sex', dateOfBirth: 'Date of birth', dateJoined: 'Date joined', classId: 'Class',
     guardianName: 'Parent / guardian name', guardianRelationship: 'Guardian’s relationship to pupil', address: 'Physical address',
     guardianRelationshipOther: 'Guardian’s relationship', phonePrimary: 'Primary telephone', phoneAlt: 'Alternative telephone',
+    emergencyName: 'Emergency contact name', emergencyRelationship: 'Emergency contact’s relationship to pupil',
     emergencyRelationshipOther: 'Emergency contact’s relationship', emergencyPhone: 'Emergency contact telephone',
   };
   return (
@@ -226,11 +231,14 @@ export function PupilFormPage() {
         </Card>
         <Card title="Emergency contact">
           <p className="mb-4 text-sm text-slate-600">Someone to call if the parent or guardian cannot be reached.</p>
+          {emergencyIncomplete && (
+            <div className="mb-4"><Notice tone="warning" title="Emergency contact details are incomplete">This pupil was registered before these details were required. Fill in the fields marked * to save your changes.</Notice></div>
+          )}
           <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-            <TextInput label="Emergency contact name" value={form.emergencyName} onChange={(e) => set('emergencyName')(e.target.value)} autoComplete="off" maxLength={120} />
-            <SelectWithOther label="Emergency contact's relationship to pupil" value={form.emergencyRelationship} onChange={set('emergencyRelationship')} placeholder="Choose…" options={options('RELATIONSHIP')}
+            <TextInput label="Emergency contact name" value={form.emergencyName} onChange={(e) => set('emergencyName')(e.target.value)} autoComplete="off" maxLength={120} required error={err('emergencyName')} />
+            <SelectWithOther label="Emergency contact's relationship to pupil" value={form.emergencyRelationship} onChange={set('emergencyRelationship')} placeholder="Choose…" options={options('RELATIONSHIP')} required error={err('emergencyRelationship')}
               other={form.emergencyRelationshipOther} onOtherChange={set('emergencyRelationshipOther')} otherLabel="Emergency contact's relationship (please specify)" otherError={err('emergencyRelationshipOther')} />
-            <TextInput label="Emergency contact telephone" {...phoneProps('emergencyPhone')} placeholder="0772 123 456" hint={PHONE_HINT} />
+            <TextInput label="Emergency contact telephone" {...phoneProps('emergencyPhone')} placeholder="0772 123 456" hint={PHONE_HINT} required />
           </div>
         </Card>
         <Card title="Notes">
