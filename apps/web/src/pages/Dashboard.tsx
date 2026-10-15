@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api, qs } from '../lib/api';
@@ -13,7 +13,7 @@ import type { Figures } from '../lib/types';
 interface Dashboard {
   term: { id: number; label: string; status: string };
   figures: Figures;
-  byClass: Array<{ className: string; totalBilled: string; totalCollected: string; outstanding: string; collectionRate: string | null }>;
+  byClass: Array<{ classId: number; className: string; totalBilled: string; totalCollected: string; outstanding: string; collectionRate: string | null }>;
   expensesByCategory: Array<{ categoryLabel: string; schoolFunded: string; ownerFunded: string; otherFunded: string; total: string }>;
   weeklyCollections: Array<{ week: string; amount: string }>;
   termsTrend: Array<{ termLabel: string; totalBilled: string; totalCollected: string; outstanding: string }>;
@@ -25,6 +25,7 @@ const tip = (v: number) => `UGX ${formatMoney(v)}`;
 
 export function DashboardPage() {
   const { can } = useAuth();
+  const navigate = useNavigate();
   const [term, setTerm] = useState('');
   const termId = scopeParams(term).termId;
   const q = useQuery({ queryKey: ['dashboard', termId], queryFn: () => api.get<Dashboard>(`/dashboard${qs({ termId })}`), enabled: !!termId });
@@ -112,17 +113,27 @@ export function DashboardPage() {
                 <div className="p-4"><Empty title="No charges in this term" /></div>
               ) : (
                 <table className="table">
+                  {can('arrears.view') && <caption className="caption-bottom px-3 py-2 text-left text-xs text-slate-500">Choose a class to see the pupils in it who still owe for this term.</caption>}
                   <thead><tr><th>Class</th><th className="num">Billed</th><th className="num">Collected</th><th className="num">Outstanding</th><th className="num">Rate</th></tr></thead>
                   <tbody>
-                    {d.byClass.map((c) => (
-                      <tr key={c.className}>
-                        <td className="font-medium">{c.className}</td>
+                    {d.byClass.map((c) => {
+                      const to = `/arrears${qs({ term: term, classId: c.classId })}`;
+                      return (
+                      <tr key={c.classId}
+                        className={can('arrears.view') ? 'cursor-pointer hover:!bg-cream-100' : undefined}
+                        onClick={can('arrears.view') ? (e) => { if (!(e.target as HTMLElement).closest('a')) navigate(to); } : undefined}>
+                        <td className="font-medium">
+                          {can('arrears.view')
+                            ? <Link to={to} className="link inline-flex items-center gap-1" aria-label={`${c.className}: see pupils who owe for this term`}>{c.className}<span aria-hidden className="text-slate-400">›</span></Link>
+                            : c.className}
+                        </td>
                         <td className="num">{formatMoney(c.totalBilled)}</td>
                         <td className="num">{formatMoney(c.totalCollected)}</td>
                         <td className={`num ${n(c.outstanding) > 0 ? 'font-medium text-red-700' : ''}`}>{formatMoney(c.outstanding)}</td>
                         <td className="num">{formatRate(c.collectionRate)}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               )}

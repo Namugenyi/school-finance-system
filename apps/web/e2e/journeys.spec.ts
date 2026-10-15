@@ -136,6 +136,19 @@ test('arrears and the statement agree on what is owed', async ({ browser }) => {
   await expect(page.getByText('330,000.00').first()).toBeVisible();
 });
 
+test('a class on the dashboard opens the arrears list for that class and term', async ({ browser }) => {
+  const page = await as(browser, 'bursar');
+  await page.goto('/');
+  await page.getByRole('link', { name: /^P1: see pupils who owe/ }).click();
+  await expect(page).toHaveURL(/\/arrears\?term=t%3A\d+&classId=\d+/);
+  await expect(page.getByLabel('Class')).toHaveValue(/\d+/);
+  await expect(page.getByRole('row', { name: new RegExp(PUPIL) })).toBeVisible();
+  await page.getByLabel('Show').selectOption({ label: 'All billed pupils' });
+  await expect(page).toHaveURL(/show=all/);
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+});
+
 test('an expense counts only after someone else approves it', async ({ browser }) => {
   const bursar = await as(browser, 'bursar');
   await bursar.goto('/expenses');

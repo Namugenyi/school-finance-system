@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, downloadUrl, qs } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
@@ -12,23 +12,36 @@ interface ArrearsRow { pupilId: number; pupilCode: string; pupilName: string; cl
 
 export function ArrearsPage() {
   const { lookups } = useLookups();
-  const [scope, setScope] = useState('');
-  const [classId, setClassId] = useState('');
-  const [minBalance, setMinBalance] = useState('');
-  const [onlyOutstanding, setOnlyOutstanding] = useState('true');
+  // Filters live in the address (e.g. /arrears?term=t:3&classId=2) so a link from the dashboard opens the
+  // same view, it can be shared, and the back button returns to it.
+  const [search, setSearch] = useSearchParams();
+  const scope = search.get('term') ?? '';
+  const classId = search.get('classId') ?? '';
+  const onlyOutstanding = search.get('show') === 'all' ? 'false' : 'true';
+  const [minBalance, setMinBalanceText] = useState(search.get('min') ?? '');
+  const setParam = (key: string, value: string) => setSearch((prev) => {
+    const next = new URLSearchParams(prev);
+    if (value) next.set(key, value); else next.delete(key);
+    return next;
+  }, { replace: true });
+  const setScope = (v: string) => setParam('term', v);
+  const setClassId = (v: string) => setParam('classId', v);
+  const setOnlyOutstanding = (v: string) => setParam('show', v === 'false' ? 'all' : '');
+  const setMinBalance = (v: string) => { setMinBalanceText(v); setParam('min', v); };
   const params = { ...scopeParams(scope), classId, minBalance: cleanAmount(minBalance), onlyOutstanding };
   const q = useQuery({ queryKey: ['arrears', params], queryFn: () => api.get<{ rows: ArrearsRow[]; totals: { pupils: number; totalBilled: string; totalPaid: string; outstanding: string }; contactsHidden: boolean }>(`/collections/arrears${qs(params)}`) });
+  const className = classId ? lookups?.classes.find((c) => String(c.id) === classId)?.name : null;
   const scopeLabel = scope.startsWith('t:') ? lookups?.terms.find((t) => `t:${t.id}` === scope)?.label : scope.startsWith('y:') ? `Year ${lookups?.years.find((y) => `y:${y.id}` === scope)?.year}` : 'All terms';
   return (
     <div className="landscape-print">
-      <PageHeader title="Arrears" subtitle={`Pupils who still owe money · ${scopeLabel}. Billed is net of approved discounts and leaves out arrears brought forward.`}
+      <PageHeader title="Arrears" subtitle={`Pupils who still owe money · ${scopeLabel}${className ? ` · ${className}` : ''}. Billed is net of approved discounts and leaves out arrears brought forward.`}
         actions={<>
           <Button variant="secondary" onClick={() => window.print()}>Print</Button>
           <Button variant="secondary" onClick={() => downloadUrl(`/collections/arrears${qs({ ...params, format: 'csv' })}`)}>Export CSV</Button>
         </>} />
       <div className="no-print mb-4 grid gap-3 sm:grid-cols-4">
         <TermSelect value={scope} onChange={setScope} allowAll allowYear />
-        <Select label="Class" value={classId} onChange={(e) => setClassId(e.target.value)} placeholder="All classes" options={(lookups?.classes ?? []).map((c) => ({ value: c.id, label: c.name }))} />
+        <Select label="Class" value={classId} onChange={(e) => setClassId(e.target.value)} placeholder="All classes" options={(lookups?.classes ?? []).map((c) => ({ value: c.id, label: c.name }))} hint="The class the fees were billed in" />
         <TextInput label="Owing at least (UGX)" inputMode="decimal" value={minBalance} onChange={(e) => setMinBalance(e.target.value)} />
         <Select label="Show" value={onlyOutstanding} onChange={(e) => setOnlyOutstanding(e.target.value)} options={[{ value: 'true', label: 'Only pupils who owe' }, { value: 'false', label: 'All billed pupils' }]} />
       </div>

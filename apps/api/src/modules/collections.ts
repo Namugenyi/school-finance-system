@@ -27,8 +27,9 @@ router.get(
     const classId = q.classId ? Number(q.classId) : undefined;
     const minBalance = q.minBalance ? dec(String(q.minBalance)) : null;
     const onlyOutstanding = q.onlyOutstanding !== 'false';
+    // The class filter uses the class each charge was billed in, so it matches "Outstanding by class" on the dashboard.
     const balances = await prisma.chargeBalance.findMany({
-      where: { ...balanceWhere(scope) },
+      where: { ...balanceWhere(scope), classId },
       select: { pupilId: true, netDue: true, totalPaid: true, balance: true, isArrears: true },
     });
     const byPupil = new Map<number, { billed: ReturnType<typeof dec>; paid: ReturnType<typeof dec>; outstanding: ReturnType<typeof dec>; unpaidItems: number }>();
@@ -42,7 +43,7 @@ router.get(
       byPupil.set(b.pupilId, row);
     }
     const pupils = await prisma.pupil.findMany({
-      where: { id: { in: [...byPupil.keys()] }, classId },
+      where: { id: { in: [...byPupil.keys()] } },
       include: { schoolClass: true },
     });
     const showContacts = hasPermission(req.user, 'pupils.contacts');

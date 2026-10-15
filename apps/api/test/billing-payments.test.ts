@@ -234,5 +234,13 @@ describe('arrears list and statements (FR-1301 to FR-1405)', () => {
     expect(st.charges).toHaveLength(2);
     expect(st.totals).toMatchObject({ totalBilled: '550000.00', totalPaid: '150000.00', outstanding: '400000.00', statusLabel: 'Partial' });
     expect(st.payments[0]).toMatchObject({ amount: '150000.00', feeItemName: 'School Fees' });
+
+    // The class filter follows the class the fees were billed in, so it matches the dashboard after a move.
+    expect((await bursar.post(`/api/pupils/${a.id}/class`, { classId: w.classes.p2, effectiveDate: '2026-05-25', eventType: 'PROMOTED' })).status).toBe(200);
+    const p1 = (await bursar.get(`/api/collections/arrears?termId=${w.terms.t1}&classId=${w.classes.p1}`)).body;
+    expect(p1.rows.map((r: { pupilName: string }) => r.pupilName)).toEqual(['Arrears Alice']);
+    expect((await bursar.get(`/api/collections/arrears?termId=${w.terms.t1}&classId=${w.classes.p2}`)).body.rows).toHaveLength(0);
+    const dash = (await bursar.get(`/api/dashboard?termId=${w.terms.t1}`)).body;
+    expect(dash.byClass.find((c: { classId: number }) => c.classId === w.classes.p1).outstanding).toBe(p1.totals.outstanding);
   });
 });
