@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-cream-100 text-slate-800 antialiased; }
+  :focus-visible { @apply outline-none ring-2 ring-accent-600 ring-offset-2; }
+}
+
+@layer components {
+  .input {
+    @apply block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400
+      focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600 disabled:bg-slate-100 disabled:text-slate-500;
+  }
+  /* Selection boxes match text boxes exactly: same height, padding, border and font, with our own arrow
+     so browsers (Safari especially) don't draw a shorter native control. */
+  input.input, select.input { height: 2.375rem; }
+  select.input {
+    @apply appearance-none bg-no-repeat pr-9;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
+    background-position: right 0.625rem center;
+    background-size: 1.25rem 1.25rem;
+  }
+  /* Sign-in help fields: a stronger border for 3:1 contrast against the white card (WCAG 1.4.11). */
+  .login-help .input { @apply border-slate-500 focus:ring-2; }
+  .login-help input.input, .login-help select.input { height: 2.75rem; }
+  /* Roomier forms (Register a pupil): 46px controls, 13px padding, 8px corners, grey-blue borders at 3.5:1,
+     a navy focus ring, and clear hover, disabled and error states that do not rely on colour alone. */
+  .form-roomy .input {
+    @apply rounded-lg border-[#7c8aa0] px-[13px] text-[0.9375rem] shadow-none transition-colors
+      hover:border-brand-500 focus:border-brand-800 focus:ring-2 focus:ring-brand-800 focus:ring-offset-0
+      disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500;
+  }
+  .form-roomy input.input, .form-roomy select.input { height: 2.875rem; }
+  .form-roomy textarea.input { @apply py-2.5 leading-relaxed; }
+  .form-roomy select.input { @apply pr-10; background-position: right 0.75rem center; }
+  .form-roomy .input[aria-invalid='true'] { @apply border-red-700 border-2 focus:ring-red-700; }
+  .form-roomy .label { @apply mb-1.5 text-sm font-medium text-slate-800; }
+  .form-roomy .field-hint { @apply mt-1.5 text-[0.8125rem] text-slate-600; }
+  .form-roomy .field-error { @apply mt-1.5 text-[0.8125rem]; }
+  .form-roomy .date-pick { @apply inset-y-1.5; }
+  .label { @apply mb-1 block text-sm font-medium text-slate-700; }
+  .card { @apply rounded-lg border border-cream-200 bg-white shadow-sm; }
+  /* :where() keeps these at utility strength, so a cell's own class (e.g. whitespace-normal) wins. */
+  .table { @apply min-w-full divide-y divide-slate-200 text-sm; }
+  .table :where(thead th) { @apply sticky top-0 z-10 whitespace-nowrap bg-cream-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-brand-700; }
+  .table :where(tbody td) { @apply whitespace-nowrap px-3 py-2 align-top; }
+  .table :where(tbody tr) { @apply hover:bg-cream-50; }
+  .num { @apply text-right tabular-nums; }
+  .computed { @apply bg-slate-50/70 text-slate-700; }
+  .link { @apply font-medium text-brand-700 hover:text-brand-900 hover:underline; }
+}
+
+/* Printing: receipts on A4 portrait (FR-1206), lists in landscape with repeating headers (FR-1305, NFR-09). */
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+  .no-print { display: none !important; }
+  body { background: white; }
+  .print-area { box-shadow: none !important; border: none !important; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  .landscape-print { page: landscape; }
+}
+@page landscape { size: A4 landscape; margin: 10mm; }
