@@ -30,6 +30,8 @@ Other choices made where the FRS left a gap:
 - Repeating a billing run, a payment or a carry-forward (a double click or a dropped connection) cannot create duplicates.
 - Owner loan repayments are not tracked yet; the report shows loans received to date.
 - Pupil status is Active or Alumni (school decision, 27/10/2026). The FRS's Withdrawn, Completed and Transferred all became Alumni, and the reason for leaving (Transferred, Completed, Withdrawn by parent, Other) records why. The demo data has the three KG classes only.
+- Approval limit (school rule, 27/10/2026): the head teacher approves discounts, payment reversals, expenses and payroll runs up to UGX 200,000 (Setup > School > Approval limit). Above that only a role with "Approve amounts above the approval limit" decides, which is the owner by default; the owner role also gained discount and reversal approval for this. Nobody approves their own entry.
+- Staff pay records: Payroll > Staff shows net paid this year and to date, each name opens a month-by-month pay record, and payslips show year-to-date figures. Only approved payroll runs count.
 
 ## Before go-live
 

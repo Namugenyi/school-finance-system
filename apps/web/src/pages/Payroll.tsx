@@ -6,7 +6,8 @@ import { useAuth, useLookups } from '../lib/auth';
 import { cleanAmount, formatDate, formatDateTime, formatMoney, todayIso } from '../lib/format';
 import { Button, Card, DateInput, DecisionButtons, Empty, ErrorBox, Loading, Modal, Money, MoneyInput, Notice, PageHeader, Select, StatusBadge, TableWrap, Tabs, TextInput, Narrow } from '../components/ui';
 
-interface Staff { id: number; staffCode: string; fullName: string; jobRole: string; department: string | null; employmentType: string; basicSalary: string; startDate: string; status: string; phone: string | null; nssfNo: string | null; tin: string | null }
+interface Staff { id: number; staffCode: string; fullName: string; jobRole: string; department: string | null; employmentType: string; basicSalary: string; startDate: string; status: string; phone: string | null; nssfNo: string | null; tin: string | null; payThisYear?: PayTotals; payToDate?: PayTotals }
+interface PayTotals { months: number; basic: string; nssfEmployee: string; paye: string; otherDeductions: string; net: string; nssfEmployer: string }
 interface RateSet { id: number; effectiveFrom: string; nssfEmployeeRate: string; nssfEmployerRate: string; notes: string | null; validated: boolean; validatedBy: string | null; bands: Array<{ lowerBound: string; upperBound: string | null; rate: string }> }
 interface RunSummary { id: number; year: number; month: number; label: string; status: string; termLabel: string; totalBasic: string; totalNet: string; expenseAmount: string }
 interface Entry { id: number; staffId: number; staffCode: string; fullName: string; jobRole: string; department: string | null; basic: string; nssfEmployee: string; nssfEmployer: string; paye: string; otherDeductions: string; otherNote: string | null; net: string }
@@ -119,13 +120,15 @@ function StaffList() {
       {q.isLoading ? <Loading /> : q.data?.length === 0 ? <div className="p-4"><Empty title="No staff yet" /></div> : (
         <TableWrap>
           <table className="table">
-            <thead><tr><th>Staff ID</th><th>Name</th><th>Role</th><th>Department</th><th>Type</th><th>Started</th><th>Status</th><th className="num">Basic salary</th>{can('payroll.manage') && <th />}</tr></thead>
+            <thead><tr><th>Staff ID</th><th>Name</th><th>Role</th><th>Department</th><th>Type</th><th>Started</th><th>Status</th><th className="num">Basic salary</th><th className="num">Net paid this year</th><th className="num">Net paid to date</th>{can('payroll.manage') && <th />}</tr></thead>
             <tbody>
               {q.data?.map((s) => (
                 <tr key={s.id} className={s.status === 'ACTIVE' ? '' : 'text-slate-400'}>
-                  <td className="font-mono text-xs">{s.staffCode}</td><td>{s.fullName}</td><td>{s.jobRole}</td><td>{s.department}</td>
+                  <td className="font-mono text-xs">{s.staffCode}</td><td><Link to={`/payroll/staff/${s.id}`} className="link">{s.fullName}</Link></td><td>{s.jobRole}</td><td>{s.department}</td>
                   <td>{label('EMPLOYMENT_TYPE', s.employmentType)}</td><td>{formatDate(s.startDate)}</td><td><StatusBadge status={s.status} /></td>
                   <td className="num"><Money value={s.basicSalary} /></td>
+                  <td className="num"><Money value={s.payThisYear?.net ?? '0'} /></td>
+                  <td className="num"><Money value={s.payToDate?.net ?? '0'} /></td>
                   {can('payroll.manage') && <td><Button variant="ghost" onClick={() => open(s)}>Edit</Button></td>}
                 </tr>
               ))}
@@ -133,6 +136,7 @@ function StaffList() {
           </table>
         </TableWrap>
       )}
+      <p className="border-t border-slate-200 px-4 py-2 text-xs text-slate-600">Paid figures add up approved payroll runs only. Choose a name to see that person’s pay month by month.</p>
       <Modal open={!!editing} wide title={editing === 'new' ? 'Add staff member' : 'Edit staff member'} onClose={() => setEditing(null)}
         footer={<><Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button><Button busy={save.isPending} onClick={() => save.mutate()}>Save</Button></>}>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -312,11 +316,11 @@ export function PayrollRunPage() {
 
 export function PayslipPage() {
   const { id, staffId } = useParams();
-  const q = useQuery({ queryKey: ['payslip', id, staffId], queryFn: () => api.get<{ school: { name: string; address: string | null }; period: string; status: string; entry: Entry }>(`/payroll/runs/${id}/payslips/${staffId}`) });
+  const q = useQuery({ queryKey: ['payslip', id, staffId], queryFn: () => api.get<{ school: { name: string; address: string | null }; period: string; status: string; entry: Entry; yearToDate: PayTotals }>(`/payroll/runs/${id}/payslips/${staffId}`) });
   if (q.isLoading) return <Loading />;
   if (!q.data) return <ErrorBox error={q.error} />;
-  const { school, period, status, entry: e } = q.data;
-  const row = (k: string, v: string, strong = false) => <tr className="border-b border-slate-100"><td className="py-1.5">{k}</td><td className={`py-1.5 text-right tabular-nums ${strong ? 'font-bold' : ''}`}>{formatMoney(v)}</td></tr>;
+  const { school, period, status, entry: e, yearToDate: ytd } = q.data;
+  const row = (k: string, v: string, y: string) => <tr className="border-b border-slate-100"><td className="py-1.5">{k}</td><td className="py-1.5 text-right tabular-nums">{formatMoney(v)}</td><td className="py-1.5 text-right tabular-nums text-slate-600">{formatMoney(y)}</td></tr>;
   return (
     <Narrow width="xl">
       <div className="no-print">
@@ -334,16 +338,73 @@ export function PayslipPage() {
           <p><span className="text-slate-500">Role:</span> {e.jobRole}</p><p><span className="text-slate-500">Department:</span> {e.department ?? '—'}</p>
         </div>
         <table className="mt-4 w-full text-sm">
+          <thead><tr className="border-b border-slate-300 text-xs text-slate-500"><th className="py-1 text-left font-medium">UGX</th><th className="py-1 text-right font-medium">This month</th><th className="py-1 text-right font-medium">Year to date</th></tr></thead>
           <tbody>
-            {row('Basic salary', e.basic)}
-            {row('Less NSSF (employee share)', e.nssfEmployee)}
-            {row('Less PAYE', e.paye)}
-            {Number(e.otherDeductions) > 0 && row(`Less other deductions${e.otherNote ? ` (${e.otherNote})` : ''}`, e.otherDeductions)}
-            <tr className="border-t-2 border-slate-800"><td className="py-2 font-semibold">Net pay (UGX)</td><td className="py-2 text-right text-lg font-bold tabular-nums">{formatMoney(e.net)}</td></tr>
+            {row('Basic salary', e.basic, ytd.basic)}
+            {row('Less NSSF (employee share)', e.nssfEmployee, ytd.nssfEmployee)}
+            {row('Less PAYE', e.paye, ytd.paye)}
+            {(Number(e.otherDeductions) > 0 || Number(ytd.otherDeductions) > 0) && row(`Less other deductions${e.otherNote ? ` (${e.otherNote})` : ''}`, e.otherDeductions, ytd.otherDeductions)}
+            <tr className="border-t-2 border-slate-800"><td className="py-2 font-semibold">Net pay</td><td className="py-2 text-right text-lg font-bold tabular-nums">{formatMoney(e.net)}</td><td className="py-2 text-right font-semibold tabular-nums">{formatMoney(ytd.net)}</td></tr>
           </tbody>
         </table>
-        <p className="mt-3 text-xs text-slate-500">Employer NSSF contribution paid on your behalf: UGX {formatMoney(e.nssfEmployer)}</p>
+        <p className="mt-3 text-xs text-slate-500">Employer NSSF contribution paid on your behalf: UGX {formatMoney(e.nssfEmployer)} this month, UGX {formatMoney(ytd.nssfEmployer)} this year. Year to date covers approved months of {period.split(' ')[1]} up to and including this one.</p>
       </article>
     </Narrow>
+  );
+}
+
+interface Earnings {
+  staff: Staff; year: number; years: number[];
+  months: Array<{ runId: number; month: number; label: string; basic: string; nssfEmployee: string; paye: string; otherDeductions: string; net: string; nssfEmployer: string; netYearToDate: string }>;
+  yearTotals: PayTotals; toDate: PayTotals;
+}
+
+/** One staff member's pay month by month, with cumulative totals for the year and since they started. */
+export function StaffEarningsPage() {
+  const { staffId } = useParams();
+  const [year, setYear] = useState('');
+  const q = useQuery({ queryKey: ['staff-earnings', staffId, year], queryFn: () => api.get<Earnings>(`/payroll/staff/${staffId}/earnings${year ? `?year=${year}` : ''}`) });
+  if (q.isLoading) return <Loading />;
+  if (!q.data) return <ErrorBox error={q.error} />;
+  const { staff: s, months, yearTotals: y, toDate: t } = q.data;
+  const yearOptions = (q.data.years.length ? q.data.years : [q.data.year]).map((v) => ({ value: v, label: String(v) }));
+  const tile = (label: string, value: string, note: string) => (
+    <div className="card p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 text-xl font-bold tabular-nums text-brand-900">UGX {formatMoney(value)}</p><p className="text-xs text-slate-500">{note}</p></div>
+  );
+  return (
+    <div>
+      <PageHeader title={`Pay record: ${s.fullName}`} crumbs={[{ label: 'Payroll', to: '/payroll' }, { label: s.staffCode }]}
+        subtitle={`${s.jobRole}${s.department ? ` · ${s.department}` : ''} · started ${formatDate(s.startDate)} · basic salary UGX ${formatMoney(s.basicSalary)}`}
+        actions={<Button variant="secondary" onClick={() => window.print()}>Print</Button>} />
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <Select label="Year" value={String(q.data.year)} onChange={(e) => setYear(e.target.value)} options={yearOptions} />
+      </div>
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        {tile(`Net paid in ${q.data.year}`, y.net, `${y.months} approved month${y.months === 1 ? '' : 's'}`)}
+        {tile(`Gross pay in ${q.data.year}`, y.basic, `PAYE UGX ${formatMoney(y.paye)} · NSSF UGX ${formatMoney(y.nssfEmployee)}`)}
+        {tile('Net paid to date', t.net, `${t.months} approved month${t.months === 1 ? '' : 's'} since starting · gross UGX ${formatMoney(t.basic)}`)}
+      </div>
+      <Card padded={false} title={`Month by month, ${q.data.year}`}>
+        {months.length === 0 ? <div className="p-4"><Empty title={`No approved pay for ${q.data.year}`}>Months appear here once their payroll run is approved.</Empty></div> : (
+          <TableWrap>
+            <table className="table">
+              <thead><tr><th>Month</th><th className="num">Basic</th><th className="num">NSSF (staff)</th><th className="num">PAYE</th><th className="num">Other</th><th className="num">Net pay</th><th className="num">Net, year to date</th><th className="num">Employer NSSF</th></tr></thead>
+              <tbody>
+                {months.map((m) => (
+                  <tr key={m.runId}>
+                    <td><Link className="link" to={`/payroll/runs/${m.runId}/payslips/${s.id}`}>{m.label}</Link></td>
+                    <td className="num"><Money value={m.basic} /></td><td className="num"><Money value={m.nssfEmployee} /></td><td className="num"><Money value={m.paye} /></td>
+                    <td className="num"><Money value={m.otherDeductions} /></td><td className="num font-semibold"><Money value={m.net} /></td>
+                    <td className="num"><Money value={m.netYearToDate} /></td><td className="num"><Money value={m.nssfEmployer} /></td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot><tr className="font-semibold"><td>Total {q.data.year}</td><td className="num"><Money value={y.basic} /></td><td className="num"><Money value={y.nssfEmployee} /></td><td className="num"><Money value={y.paye} /></td><td className="num"><Money value={y.otherDeductions} /></td><td className="num"><Money value={y.net} /></td><td /><td className="num"><Money value={y.nssfEmployer} /></td></tr></tfoot>
+            </table>
+          </TableWrap>
+        )}
+      </Card>
+      <p className="mt-2 text-xs text-slate-500">Only approved payroll runs count. A month waiting for approval is left out until it is approved.</p>
+    </div>
   );
 }

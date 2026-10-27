@@ -136,6 +136,8 @@ model SchoolSettings {
   adminContactEmail String?
   // Payroll stays off for live use until statutory rates are signed off (G-03, WR-17).
   payrollEnabled    Boolean  @default(false)
+  // Approvals above this amount need the approvals.overLimit permission (the owner by default). Null means no limit.
+  approvalLimit     Decimal? @default(200000) @db.Decimal(14, 2)
   updatedAt         DateTime @updatedAt
 }
 

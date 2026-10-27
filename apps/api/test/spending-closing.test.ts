@@ -127,11 +127,82 @@ describe('payroll (FR-901 to FR-908, WR-16, WR-17, D-07, E2E-12/13)', () => {
     expect((await bursar.post('/api/payroll/runs', { year: 2026, month: 3 })).status).toBe(409);
   });
 
+  it('keeps a cumulative pay record for each staff member from approved runs only', async () => {
+    const set = await prisma.statutoryRateSet.findFirstOrThrow();
+    await prisma.statutoryRateSet.update({ where: { id: set.id }, data: { validated: true, validatedBy: 'Test' } });
+    await admin.patch('/api/setup/settings', { payrollEnabled: true });
+    const owner = await login('owner');
+    const march = await staffAndRun();
+    for (const month of [3, 4]) {
+      const run = month === 3 ? march : (await bursar.post('/api/payroll/runs', { year: 2026, month })).body;
+      await bursar.post(`/api/payroll/runs/${run.id}/submit`);
+      expect((await owner.post(`/api/payroll/runs/${run.id}/decide`, { approve: true })).status).toBe(200);
+    }
+    const may = (await bursar.post('/api/payroll/runs', { year: 2026, month: 5 })).body; // still a draft: must not count
+    const teacher = march.entries[0];
+
+    const earnings = (await bursar.get(`/api/payroll/staff/${teacher.staffId}/earnings?year=2026`)).body;
+    expect(earnings.months.map((m: { label: string }) => m.label)).toEqual(['March 2026', 'April 2026']);
+    expect(earnings.months[1].netYearToDate).toBe((Number(teacher.net) * 2).toFixed(2));
+    expect(earnings.yearTotals).toMatchObject({ months: 2, basic: '1000000.00', net: (Number(teacher.net) * 2).toFixed(2), paye: (Number(teacher.paye) * 2).toFixed(2) });
+    expect(earnings.toDate.months).toBe(2);
+    expect(earnings.years).toEqual([2026]);
+
+    const slip = (await bursar.get(`/api/payroll/runs/${may.id}/payslips/${teacher.staffId}`)).body;
+    expect(slip.yearToDate).toMatchObject({ months: 3, basic: '1500000.00' }); // two approved months plus this one
+
+    const list = (await bursar.get('/api/payroll/staff')).body;
+    expect(list.find((x: { id: number }) => x.id === teacher.staffId).payToDate).toMatchObject({ months: 2, basic: '1000000.00' });
+  });
+
   it('rejects other deductions that make net pay negative (A-19)', async () => {
     const run = await staffAndRun();
     const entry = run.entries[1];
     const res = await bursar.patch(`/api/payroll/runs/${run.id}/entries/${entry.id}`, { otherDeductions: '400000', otherNote: 'Advance' });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('approval limit (school rule: over UGX 200,000 goes to the owner)', () => {
+  it('lets the head teacher approve up to the limit and leaves anything above it to the owner', async () => {
+    await admin.patch('/api/setup/settings', { approvalLimit: '200,000' });
+    expect((await bursar.get('/api/setup/lookups')).body.school.approvalLimit).toBe('200000.00');
+    const owner = await login('owner');
+    const expense = async (amount: string) => (await bursar.post('/api/expenses', {
+      expenseDate: '2026-03-10', termId: w.terms.t1, category: 'REPAIRS_AND_MAINTENANCE', description: `Repairs ${amount}`, amount, fundingSource: 'SCHOOL_FUNDS', method: 'CASH',
+    })).body;
+    const small = await expense('200000');
+    const big = await expense('200001');
+    expect((await head.post(`/api/expenses/${small.id}/decide`, { approve: true })).status).toBe(200);
+
+    const inbox = (await head.get('/api/approvals')).body as Array<{ type: string; id: number; overLimit: boolean; canDecide: boolean }>;
+    expect(inbox.find((i) => i.type === 'EXPENSE' && i.id === big.id)).toMatchObject({ overLimit: true, canDecide: false });
+    const refused = await head.post(`/api/expenses/${big.id}/decide`, { approve: true });
+    expect(refused.status).toBe(403);
+    expect(refused.body.error.message).toMatch(/approval limit of UGX 200,000.00.*owner/);
+    expect((await head.post(`/api/expenses/${big.id}/decide`, { approve: false, note: 'Too dear' })).status).toBe(403);
+
+    const ownerInbox = (await owner.get('/api/approvals')).body as Array<{ type: string; id: number; canDecide: boolean }>;
+    expect(ownerInbox.find((i) => i.type === 'EXPENSE' && i.id === big.id)?.canDecide).toBe(true);
+    expect((await owner.post(`/api/expenses/${big.id}/decide`, { approve: true })).status).toBe(200);
+  });
+
+  it('applies the limit to discounts too, and can be removed', async () => {
+    await admin.patch('/api/setup/settings', { approvalLimit: '200000' });
+    await setFees(bursar, w.terms.t1, w.classes.p1, [{ feeItemId: w.items.SCHOOL_FEES, amount: '900000', mandatory: true }]);
+    const pupil = await createPupil(bursar, w, 'Big Discount');
+    await bill(bursar, w.terms.t1, w.classes.p1);
+    const [charge] = await chargesOf(bursar, pupil.id, w.terms.t1);
+    const d = await bursar.post(`/api/charges/${charge.id}/discounts`, { amount: '300000', reason: 'Bursary' });
+    expect(d.status, JSON.stringify(d.body)).toBe(200);
+    expect((await head.post(`/api/charges/discounts/${d.body.id}/decide`, { approve: true })).status).toBe(403);
+    const owner = await login('owner');
+    expect((await owner.post(`/api/charges/discounts/${d.body.id}/decide`, { approve: true })).status).toBe(200);
+
+    await admin.patch('/api/setup/settings', { approvalLimit: '' });
+    expect((await bursar.get('/api/setup/lookups')).body.school.approvalLimit).toBeNull();
+    const d2 = await bursar.post(`/api/charges/${charge.id}/discounts`, { amount: '250000', reason: 'Second bursary' });
+    expect((await head.post(`/api/charges/discounts/${d2.body.id}/decide`, { approve: true })).status).toBe(200);
   });
 });
 

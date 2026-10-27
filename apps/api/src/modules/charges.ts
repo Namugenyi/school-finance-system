@@ -9,9 +9,10 @@ import { isoDate, parseDate } from '../lib/dates';
 import { nextChargeNo } from '../lib/ids';
 import { dec, money } from '../lib/money';
 import { currentUser, requirePermission } from '../auth/session';
-import { assertDifferentApprover, assertDiscountWithinCharge } from '../finance/policies';
+import { assertDifferentApprover, assertWithinApprovalLimit, assertDiscountWithinCharge } from '../finance/policies';
 import { checkTermOpen } from '../finance/periods';
 import { moneyInput } from './fees';
+import { getSettings } from './setup';
 
 export const router = Router();
 
@@ -253,6 +254,7 @@ router.post(
     if (!discount) throw notFound('Discount');
     if (discount.status !== 'PENDING') throw badRequest('This discount has already been decided');
     assertDifferentApprover(discount.requestedById, user.id);
+    assertWithinApprovalLimit(user, (await getSettings(prisma)).approvalLimit, discount.amount);
     if (!body.approve && !body.note) throw badRequest('Give a reason for rejecting');
     await checkTermOpen(prisma, user, discount.charge.termId);
     if (body.approve && dec(discount.charge.carriedForwardAmount).gt(0)) {

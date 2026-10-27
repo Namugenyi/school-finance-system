@@ -10,9 +10,9 @@ import { nextExpenseNo } from '../lib/ids';
 import { dec, money } from '../lib/money';
 import { sendCsv, wantsCsv } from '../lib/csv';
 import { currentUser, hasPermission, requirePermission } from '../auth/session';
-import { assertDifferentApprover, fundingBucket } from '../finance/policies';
+import { assertDifferentApprover, assertWithinApprovalLimit, fundingBucket, overApprovalLimit } from '../finance/policies';
 import { checkTermOpen } from '../finance/periods';
-import { assertRefCode, otherText, termLabel } from './setup';
+import { assertRefCode, otherText, termLabel, getSettings } from './setup';
 import { moneyInput } from './fees';
 
 export const router = Router();
@@ -34,7 +34,15 @@ const expenseBody = z.object({
 
 type ExpenseRow = Prisma.ExpenseGetPayload<{ include: { term: { include: { academicYear: true } }; payrollRun: true; contribution: true } }>;
 
-function serialize(e: ExpenseRow, names: Map<number, string>, userId?: number, canApprove = false) {
+/** Whether this user may decide an expense of a given amount: the approve permission, within the approval limit unless they hold approvals.overLimit. */
+async function approverCheck(user: Parameters<typeof hasPermission>[0]) {
+  if (!hasPermission(user, 'expenses.approve')) return () => false;
+  if (hasPermission(user, 'approvals.overLimit')) return () => true;
+  const { approvalLimit } = await getSettings(prisma);
+  return (amount: Prisma.Decimal) => !overApprovalLimit(approvalLimit, amount);
+}
+
+function serialize(e: ExpenseRow, names: Map<number, string>, userId?: number, canApprove: (amount: Prisma.Decimal) => boolean = () => false) {
   return {
     id: e.id,
     expenseNo: e.expenseNo,
@@ -60,7 +68,7 @@ function serialize(e: ExpenseRow, names: Map<number, string>, userId?: number, c
     postClose: e.postClose,
     payrollRunId: e.payrollRun?.id ?? null,
     contributionId: e.contribution?.id ?? null,
-    canDecide: canApprove && e.status === 'PENDING' && e.enteredById !== userId,
+    canDecide: canApprove(e.amount) && e.status === 'PENDING' && e.enteredById !== userId,
   };
 }
 
@@ -102,7 +110,8 @@ router.get(
     ]);
     const nameMap = await names(items.map((i) => i.enteredById));
     const user = req.user;
-    const rows = items.map((e) => serialize(e, nameMap, user?.id, hasPermission(user, 'expenses.approve')));
+    const approver = await approverCheck(user);
+    const rows = items.map((e) => serialize(e, nameMap, user?.id, approver));
     if (csv) {
       sendCsv(res, 'expenses.csv', ['Expense ID', 'Date', 'Term', 'Category', 'Description', 'Amount', 'Supplier', 'Method', 'Invoice', 'Funding source', 'Status', 'Approved by'],
         rows.map((r) => [r.expenseNo, displayDate(new Date(r.expenseDate!)), r.termLabel, r.category, r.description, r.amount, r.supplier, r.method, r.invoiceRef, r.fundingSourceOther ? `${r.fundingSource}: ${r.fundingSourceOther}` : r.fundingSource, r.status, r.approvedByName]));
@@ -118,7 +127,7 @@ router.get(
   handle(async (req) => {
     const e = await prisma.expense.findUnique({ where: { id: idParam(req) }, include });
     if (!e) throw notFound('Expense');
-    return serialize(e, await names([e.enteredById]), req.user?.id, hasPermission(req.user, 'expenses.approve'));
+    return serialize(e, await names([e.enteredById]), req.user?.id, await approverCheck(req.user));
   }),
 );
 
@@ -213,6 +222,7 @@ router.post(
     if (e.status !== 'PENDING') throw badRequest('This expense has already been decided');
     if (e.payrollRun) throw forbidden('Payroll expenses are approved with their payroll run');
     assertDifferentApprover(e.enteredById, user.id);
+    assertWithinApprovalLimit(user, (await getSettings(prisma)).approvalLimit, e.amount);
     if (!body.approve && !body.note) throw badRequest('Give a reason for rejecting');
     await checkTermOpen(prisma, user, e.termId);
     await prisma.$transaction(async (tx) => {

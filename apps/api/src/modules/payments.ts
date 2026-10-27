@@ -10,7 +10,7 @@ import { nextReceiptNo } from '../lib/ids';
 import { dec, money, sum, ugx } from '../lib/money';
 import { sendCsv, wantsCsv } from '../lib/csv';
 import { currentUser, hasPermission, requirePermission } from '../auth/session';
-import { assertDifferentApprover, receiptYear } from '../finance/policies';
+import { assertDifferentApprover, assertWithinApprovalLimit, receiptYear } from '../finance/policies';
 import { checkTermOpen } from '../finance/periods';
 import { assertRefCode, getSettings } from './setup';
 import { moneyInput } from './fees';
@@ -280,6 +280,7 @@ router.post(
     if (!reversal) throw notFound('Reversal');
     if (reversal.status !== 'PENDING') throw badRequest('This reversal has already been decided');
     assertDifferentApprover(reversal.requestedById, user.id);
+    assertWithinApprovalLimit(user, (await getSettings(prisma)).approvalLimit, reversal.receipt.total);
     if (!body.approve && !body.note) throw badRequest('Give a reason for rejecting');
     for (const l of reversal.receipt.lines) await checkTermOpen(prisma, user, l.charge.termId);
     // D-01: money paid on a charge that has since been carried forward cannot go back onto that

@@ -4,9 +4,9 @@ import { handle } from '../lib/http';
 import { displayDate } from '../lib/dates';
 import { money } from '../lib/money';
 import { currentUser, requirePermission } from '../auth/session';
-import { termLabel } from './setup';
 import { monthLabel } from './payroll';
-import { payrollExpenseAmount } from '../finance/policies';
+import { overApprovalLimit, payrollExpenseAmount } from '../finance/policies';
+import { getSettings, termLabel } from './setup';
 
 export const router = Router();
 
@@ -25,11 +25,14 @@ router.get(
       prisma.termSnapshot.findMany({ where: { status: 'PENDING' }, include: { term: { include: { academicYear: true } } }, orderBy: { id: 'asc' } }),
       prisma.user.findMany({ select: { id: true, fullName: true } }),
     ]);
+    const { approvalLimit } = await getSettings(prisma);
     const name = (id: number) => users.find((u) => u.id === id)?.fullName ?? 'Unknown';
     const item = (type: string, id: number, title: string, detail: string, amount: string | null, requestedById: number, requestedAt: Date, permission: string, link: string) => ({
       type, id, title, detail, amount, requestedBy: name(requestedById), requestedAt, link,
       ownEntry: requestedById === user.id,
-      canDecide: can(permission) && requestedById !== user.id,
+      // Over the approval limit: only someone with approvals.overLimit (the owner by default) decides.
+      overLimit: amount !== null && overApprovalLimit(approvalLimit, amount),
+      canDecide: can(permission) && requestedById !== user.id && !(amount !== null && overApprovalLimit(approvalLimit, amount) && !can('approvals.overLimit')),
     });
     return [
       ...discounts.map((d) => item('DISCOUNT', d.id, `Discount for ${d.charge.pupil.fullName}`, `${d.charge.feeItem.name}, ${termLabel(d.charge.term)}: ${d.reason}`, money(d.amount), d.requestedById, d.requestedAt, 'discounts.approve', `/charges/${d.chargeId}`)),

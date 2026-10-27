@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import { formatDateTime, formatMoney } from '../lib/format';
 import { Card, DecisionButtons, Empty, ErrorBox, Loading, PageHeader } from '../components/ui';
 
-interface Item { type: string; id: number; title: string; detail: string; amount: string | null; requestedBy: string; requestedAt: string; link: string; ownEntry: boolean; canDecide: boolean }
+interface Item { type: string; id: number; title: string; detail: string; amount: string | null; requestedBy: string; requestedAt: string; link: string; ownEntry: boolean; overLimit?: boolean; canDecide: boolean }
 
 const ENDPOINT: Record<string, (id: number) => string> = {
   DISCOUNT: (id) => `/charges/discounts/${id}/decide`,
@@ -47,9 +47,10 @@ export function ApprovalsPage() {
               </div>
               <div className="flex flex-col items-end gap-2">
                 {i.amount && <p className="text-lg font-semibold tabular-nums">UGX {formatMoney(i.amount)}</p>}
+                {i.overLimit && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 ring-1 ring-amber-600/30">Over the limit: owner approves</span>}
                 <DecisionButtons
                   busy={decide.isPending}
-                  disabledReason={i.ownEntry ? 'You entered this, so someone else must approve it.' : !i.canDecide ? 'Your role cannot approve this.' : null}
+                  disabledReason={i.ownEntry ? 'You entered this, so someone else must approve it.' : !i.canDecide ? (i.overLimit ? 'This is over the approval limit, so the school owner decides it.' : 'Your role cannot approve this.') : null}
                   onDecide={(approve, note) => decide.mutate({ item: i, approve, note })}
                 />
               </div>

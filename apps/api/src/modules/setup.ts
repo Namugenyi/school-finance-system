@@ -90,7 +90,7 @@ router.get(
       sections: sections.map((s) => ({ id: s.id, code: s.code, name: s.name, active: s.active })),
       classes: classes.map((c) => ({ id: c.id, name: c.name, sectionId: c.sectionId, sectionName: c.section.name, active: c.active, sortOrder: c.sortOrder })),
       feeItems: feeItems.map((f) => ({ id: f.id, code: f.code, name: f.name, defaultMandatory: f.defaultMandatory, frequency: f.frequency, isSystem: f.isSystem, active: f.active })),
-      school: { name: settings.schoolName, payrollEnabled: settings.payrollEnabled },
+      school: { name: settings.schoolName, payrollEnabled: settings.payrollEnabled, approvalLimit: settings.approvalLimit === null ? null : settings.approvalLimit.toFixed(2) },
     };
   }),
 );
@@ -116,6 +116,11 @@ router.patch(
         adminContactEmail: z.string().trim().email().max(200).nullable().optional().or(z.literal('').transform(() => null)),
         pupilIdStartYear: z.number().int().min(2000).max(2100).optional(),
         payrollEnabled: z.boolean().optional(),
+        // Whole shillings; null or blank removes the limit.
+        approvalLimit: z.union([z.string(), z.number(), z.null()]).optional()
+          .transform((v) => (v === null || v === undefined ? v : String(v).replace(/[,\s]/g, '')))
+          .refine((v) => v === null || v === undefined || v === '' || /^\d{1,12}(\.\d{1,2})?$/.test(v), 'Enter the approval limit in UGX, for example 200000')
+          .transform((v) => (v === '' ? null : v)),
       }),
       req.body,
     );

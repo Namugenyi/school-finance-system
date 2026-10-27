@@ -4,7 +4,8 @@
  * Tina accepted all seven recommendations on 13/10/2026, so these are confirmed decisions.
  */
 import { badRequest, forbidden } from '../lib/errors';
-import { Decimal } from '../lib/money';
+import type { Prisma } from '@prisma/client';
+import { Decimal, dec, ugx } from '../lib/money';
 
 /** D-03: three expense buckets. Total Expenses = school + owner + other (PC-05 amends BR-11). */
 export type FundingBucket = 'SCHOOL' | 'OWNER' | 'OTHER';
@@ -38,6 +39,20 @@ export function frequencySkipReason(
 export function assertDifferentApprover(enteredById: number, approverId: number) {
   if (enteredById === approverId) {
     throw forbidden('You cannot approve your own entry. Another authorised person must approve it.');
+  }
+}
+
+/**
+ * Approval limit (school rule, 27/10/2026): amounts above the limit in Setup > School are approved or
+ * rejected only by someone with approvals.overLimit, the owner by default.
+ */
+export function overApprovalLimit(limit: Prisma.Decimal.Value | null | undefined, amount: Prisma.Decimal.Value) {
+  return limit !== null && limit !== undefined && dec(amount).gt(dec(limit));
+}
+
+export function assertWithinApprovalLimit(user: { permissions: Set<string> }, limit: Prisma.Decimal.Value | null | undefined, amount: Prisma.Decimal.Value) {
+  if (overApprovalLimit(limit, amount) && !user.permissions.has('approvals.overLimit')) {
+    throw forbidden(`This is over the approval limit of ${ugx(limit!)}, so the school owner must decide it.`);
   }
 }
 

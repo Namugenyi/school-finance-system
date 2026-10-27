@@ -20,9 +20,21 @@ The app is one Docker image (the API serves the web screens) plus PostgreSQL 16.
 
 Do not run the demo seed on a real database; it refuses if any users or pupils exist.
 
+## Another school
+
+Each school runs its own copy of the app, with its own database, users and web address (decision 27/10/2026). Nothing is shared between copies, so one school's money and records can never show up in another's.
+
+1. On the same server or a new one, copy the repository into a new folder, for example `/srv/finance-schoolb`. Docker Compose names the containers and the database volume after the folder, so the copies stay apart.
+2. In that folder's `.env` use a different `DB_PASSWORD`, the new school's `APP_ORIGIN`, and its first administrator. If both copies share a server, change the published port in `docker-compose.yml` (for example `"4001:4000"`) and point the second web address at it.
+3. Start it with `docker compose up -d --build`, then work through Setup for that school: school details, approval limit, years and terms, classes, fee items and users.
+4. Back up each copy's database separately (see Backups).
+
+Pupil IDs currently start with `STJA-` in every copy. Another school would need that prefix made a setting first.
+
 ## Updating
 
-`git pull && docker compose up -d --build`. Migrations run automatically on start.
+`git pull && docker compose up -d --build` in each school's folder. Migrations run automatically on start.
+
 
 ## Backups
 

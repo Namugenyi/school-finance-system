@@ -35,6 +35,7 @@ export const PERMISSIONS = {
   'carryforward.run': 'Carry unpaid balances forward',
   'termclose.prepare': 'Prepare term close snapshots',
   'termclose.approve': 'Approve term close',
+  'approvals.overLimit': 'Approve amounts above the approval limit set in Setup > School',
   'term.postClosed': 'Record transactions in a closed term (post-close exceptions)',
   'reports.view': 'View financial reports',
   'dashboard.view': 'View the dashboard',
@@ -87,8 +88,8 @@ export const DEFAULT_ROLES: Array<{ code: string; name: string; description: str
   {
     code: 'PROPRIETOR',
     name: 'Proprietor / Owner',
-    description: 'Financial summaries, owner funds, collection performance, surplus and deficit.',
-    permissions: [...VIEW_FINANCE, 'expenses.approve', 'payroll.view', 'payroll.approve', 'approvals.view'],
+    description: 'Financial summaries, owner funds, collection performance, surplus and deficit. Approves amounts above the approval limit.',
+    permissions: [...VIEW_FINANCE, 'discounts.approve', 'payments.reverse.approve', 'expenses.approve', 'payroll.view', 'payroll.approve', 'approvals.view', 'approvals.overLimit'],
   },
   {
     code: 'AUDITOR',

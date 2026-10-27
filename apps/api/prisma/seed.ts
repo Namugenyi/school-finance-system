@@ -64,6 +64,9 @@ async function main() {
   const admin = await as('admin');
   const bursar = await as('bursar');
   const head = await as('head');
+  const owner = await as('owner');
+  // Approval limit: the head teacher decides up to UGX 200,000, the owner above that.
+  const approver = (amount: string | number) => (Number(amount) > 200000 ? owner : head);
 
   await admin.patch('/api/setup/settings', { address: 'Plot 12, Kasangati Town Council, Wakiso District', phone: '+256 700 000000', email: 'accounts@demo.stja.example', receiptFooter: 'DEMO receipt. Thank you for your payment.' });
 
@@ -127,7 +130,7 @@ async function main() {
       await bursar.post('/api/billing/post', { termId: terms[termIndex].id, classId: c.id, idempotencyKey: key(), confirm: true, dueDate: preview.term ? undefined : undefined, rows });
     }
     const approvals = await head.get('/api/approvals');
-    for (const a of approvals.filter((x: { type: string }) => x.type === 'DISCOUNT')) await head.post(`/api/charges/discounts/${a.id}/decide`, { approve: true });
+    for (const a of approvals.filter((x: { type: string }) => x.type === 'DISCOUNT')) await approver(a.amount).post(`/api/charges/discounts/${a.id}/decide`, { approve: true });
   };
 
   const collect = async (termIndex: number, share: number, dates: string[]) => {
@@ -166,19 +169,19 @@ async function main() {
       });
       ids.push(e.id);
       if (fundingSource === 'OWNER_CONTRIBUTION') {
-        await head.post(`/api/expenses/${e.id}/decide`, { approve: true });
+        await approver(amount).post(`/api/expenses/${e.id}/decide`, { approve: true });
         await bursar.post('/api/owner-funds', { date: `${month}-${String(5 + i).padStart(2, '0')}`, termId: terms[termIndex].id, type: 'EXPENSE_PAID_DIRECTLY', amount, ownerName: 'Peter Proprietor', description, expenseId: e.id });
       }
     }
     for (const id of ids) {
       const e = await bursar.get(`/api/expenses/${id}`);
-      if (e.status === 'PENDING') await head.post(`/api/expenses/${id}/decide`, { approve: true });
+      if (e.status === 'PENDING') await approver(e.amount).post(`/api/expenses/${id}/decide`, { approve: true });
     }
   };
 
   // Staff and payroll. The FRS rates are legacy: the demo marks them signed off so payroll can be shown.
   for (const [fullName, jobRole, employmentType, basicSalary] of [
-    ['Rose Nambi', 'Head of Primary', 'PERMANENT', '1200000'], ['John Ssebunya', 'Class teacher', 'PERMANENT', '650000'],
+    ['Rose Nambi', 'Head of Nursery', 'PERMANENT', '1200000'], ['John Ssebunya', 'Class teacher', 'PERMANENT', '650000'],
     ['Mary Akello', 'Class teacher', 'PERMANENT', '600000'], ['Isaac Mutebi', 'Class teacher', 'CONTRACT', '550000'],
     ['Juliet Nakku', 'Nursery teacher', 'PERMANENT', '500000'], ['Sam Ochieng', 'Cook', 'CONTRACT', '300000'],
     ['Agnes Nakimuli', 'Matron', 'CONTRACT', '280000'], ['Paul Kigozi', 'Security guard', 'CASUAL', '250000'],
@@ -191,7 +194,7 @@ async function main() {
   const runPayroll = async (month: number, termId?: number) => {
     const run = await bursar.post('/api/payroll/runs', { year: 2026, month, termId });
     await bursar.post(`/api/payroll/runs/${run.id}/submit`);
-    await head.post(`/api/payroll/runs/${run.id}/decide`, { approve: true });
+    await approver(run.totals.expenseAmount).post(`/api/payroll/runs/${run.id}/decide`, { approve: true });
   };
 
   // Term 1: bill, collect, spend, pay staff, close, carry forward.

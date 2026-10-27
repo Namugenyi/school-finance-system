@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma, type Db } from '../db';
 import { handle, idParam, parse } from '../lib/http';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors';
@@ -8,7 +9,7 @@ import { isoDate, parseDate } from '../lib/dates';
 import { nextExpenseNo, nextStaffCode } from '../lib/ids';
 import { dec, money, sum } from '../lib/money';
 import { currentUser, requirePermission } from '../auth/session';
-import { assertDifferentApprover, payrollExpenseAmount, postingTermForMonth } from '../finance/policies';
+import { assertDifferentApprover, assertWithinApprovalLimit, payrollExpenseAmount, postingTermForMonth } from '../finance/policies';
 import { checkTermOpen } from '../finance/periods';
 import { computePayLine } from '../finance/payroll';
 import { assertRefCode, getSettings, termLabel } from './setup';
@@ -38,7 +39,67 @@ const serializeStaff = (s: Awaited<ReturnType<typeof prisma.staff.findFirstOrThr
   ...s, basicSalary: money(s.basicSalary), startDate: isoDate(s.startDate),
 });
 
-router.get('/staff', requirePermission('payroll.view'), handle(async () => (await prisma.staff.findMany({ orderBy: { staffCode: 'asc' } })).map(serializeStaff)));
+// ───────── Cumulative pay per staff member ─────────
+// Only approved (POSTED) runs count: a draft or rejected run has paid nobody.
+
+type PayEntry = { basic: Prisma.Decimal; nssfEmployee: Prisma.Decimal; nssfEmployer: Prisma.Decimal; paye: Prisma.Decimal; otherDeductions: Prisma.Decimal; net: Prisma.Decimal };
+
+/** Totals of a set of payroll entries: gross (basic), each deduction, net, and employer NSSF. */
+export function payTotals(entries: PayEntry[]) {
+  return {
+    months: entries.length,
+    basic: money(sum(entries.map((e) => e.basic))),
+    nssfEmployee: money(sum(entries.map((e) => e.nssfEmployee))),
+    paye: money(sum(entries.map((e) => e.paye))),
+    otherDeductions: money(sum(entries.map((e) => e.otherDeductions))),
+    net: money(sum(entries.map((e) => e.net))),
+    nssfEmployer: money(sum(entries.map((e) => e.nssfEmployer))),
+  };
+}
+
+const postedEntries = (where: Prisma.PayrollEntryWhereInput = {}) =>
+  prisma.payrollEntry.findMany({ where: { ...where, run: { status: 'POSTED', ...(where.run as object) } }, include: { run: { select: { year: true, month: true, id: true } } } });
+
+router.get(
+  '/staff',
+  requirePermission('payroll.view'),
+  handle(async () => {
+    const year = new Date().getFullYear();
+    const [staff, entries] = await Promise.all([prisma.staff.findMany({ orderBy: { staffCode: 'asc' } }), postedEntries()]);
+    return staff.map((s) => {
+      const mine = entries.filter((e) => e.staffId === s.id);
+      return { ...serializeStaff(s), payThisYear: payTotals(mine.filter((e) => e.run.year === year)), payToDate: payTotals(mine) };
+    });
+  }),
+);
+
+/** A staff member's pay month by month, with totals for the chosen year and since they started. */
+router.get(
+  '/staff/:id/earnings',
+  requirePermission('payroll.view'),
+  handle(async (req) => {
+    const id = idParam(req);
+    const staff = await prisma.staff.findUnique({ where: { id } });
+    if (!staff) throw notFound('Staff member');
+    const entries = (await postedEntries({ staffId: id })).sort((a, b) => a.run.year - b.run.year || a.run.month - b.run.month);
+    const years = [...new Set(entries.map((e) => e.run.year))].sort((a, b) => b - a);
+    const asked = Number(req.query.year);
+    const year = Number.isInteger(asked) && asked > 1900 ? asked : years[0] ?? new Date().getFullYear();
+    let running = new Prisma.Decimal(0);
+    const months = entries.filter((e) => e.run.year === year).map((e) => {
+      running = running.plus(e.net);
+      return {
+        runId: e.run.id, month: e.run.month, label: monthLabel(e.run.year, e.run.month),
+        basic: money(e.basic), nssfEmployee: money(e.nssfEmployee), paye: money(e.paye), otherDeductions: money(e.otherDeductions), net: money(e.net), nssfEmployer: money(e.nssfEmployer),
+        netYearToDate: money(running),
+      };
+    });
+    return {
+      staff: serializeStaff(staff), year, years,
+      months, yearTotals: payTotals(entries.filter((e) => e.run.year === year)), toDate: payTotals(entries),
+    };
+  }),
+);
 
 router.post(
   '/staff',
@@ -340,6 +401,7 @@ router.post(
     if (!run) throw notFound('Payroll run');
     if (run.status !== 'SUBMITTED') throw badRequest(run.status === 'POSTED' ? 'This payroll run has already been posted' : 'Submit the payroll run before approving it');
     assertDifferentApprover(run.preparedById, user.id);
+    assertWithinApprovalLimit(user, (await getSettings(prisma)).approvalLimit, payrollExpenseAmount(run));
     if (!body.approve) {
       if (!body.note) throw badRequest('Give a reason for rejecting');
       await prisma.payrollRun.update({ where: { id }, data: { status: 'REJECTED', decisionNote: body.note } });
@@ -389,6 +451,10 @@ router.get(
     const entry = run.entries.find((e) => e.staffId === idParam(req, 'staffId'));
     if (!entry) throw notFound('Payslip');
     const settings = await getSettings(prisma);
-    return { school: { name: settings.schoolName, address: settings.address }, period: run.label, status: run.status, entry };
+    // Year to date: approved months of the same year up to this one, plus this month even if not yet approved.
+    const earlier = await postedEntries({ staffId: entry.staffId, run: { year: run.year, month: { lt: run.month } } });
+    const self = await prisma.payrollEntry.findUniqueOrThrow({ where: { id: entry.id } });
+    const yearToDate = payTotals([...earlier, self]);
+    return { school: { name: settings.schoolName, address: settings.address }, period: run.label, status: run.status, entry, yearToDate };
   }),
 );

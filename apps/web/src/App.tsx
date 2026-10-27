@@ -14,7 +14,7 @@ import { PaymentsPage, NewPaymentPage, ReceiptPage } from './pages/Payments';
 import { ArrearsPage, StatementPage } from './pages/Collections';
 import { ExpensesPage, ExpenseDetailPage } from './pages/Expenses';
 import { OwnerFundsPage } from './pages/OwnerFunds';
-import { PayrollPage, PayrollRunPage, PayslipPage } from './pages/Payroll';
+import { PayrollPage, PayrollRunPage, PayslipPage, StaffEarningsPage } from './pages/Payroll';
 import { CarryForwardPage } from './pages/CarryForward';
 import { TermClosePage, SnapshotPage } from './pages/TermClose';
 import { ReportsPage } from './pages/Reports';
@@ -65,6 +65,7 @@ export function App() {
         <Route path="payroll" element={<Guard perm="payroll.view"><PayrollPage /></Guard>} />
         <Route path="payroll/runs/:id" element={<Guard perm="payroll.view"><PayrollRunPage /></Guard>} />
         <Route path="payroll/runs/:id/payslips/:staffId" element={<Guard perm="payroll.view"><PayslipPage /></Guard>} />
+        <Route path="payroll/staff/:staffId" element={<Guard perm="payroll.view"><StaffEarningsPage /></Guard>} />
         <Route path="carry-forward" element={<Guard perm="carryforward.run"><CarryForwardPage /></Guard>} />
         <Route path="term-close" element={<Guard perm={['snapshots.view', 'termclose.prepare', 'termclose.approve']}><TermClosePage /></Guard>} />
         <Route path="term-close/snapshots/:id" element={<Guard perm={['snapshots.view', 'termclose.prepare', 'termclose.approve']}><SnapshotPage /></Guard>} />

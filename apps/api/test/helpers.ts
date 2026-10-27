@@ -17,6 +17,8 @@ export async function resetDb() {
   await prisma.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"${t.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`);
   await prisma.$executeRawUnsafe(`ALTER TABLE "TermSnapshot" ENABLE TRIGGER "TermSnapshot_freeze"`);
   await seedBase(prisma, { startYear: 2026 });
+  // Most tests are about other rules, so they start with no approval limit; approval-limit tests set one.
+  await prisma.schoolSettings.update({ where: { id: 1 }, data: { approvalLimit: null } });
   const hash = await bcrypt.hash(PASSWORD, 4);
   const roles = await prisma.role.findMany();
   const users: Record<string, number> = {};

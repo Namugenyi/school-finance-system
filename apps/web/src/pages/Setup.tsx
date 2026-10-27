@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
-import { formatDate } from '../lib/format';
-import { Button, Card, DateInput, ErrorBox, Loading, Modal, Notice, PageHeader, Select, StatusBadge, TableWrap, Tabs, TextInput, Narrow } from '../components/ui';
+import { cleanAmount, formatDate, formatMoney } from '../lib/format';
+import { Button, Card, DateInput, ErrorBox, Loading, Modal, MoneyInput, Notice, PageHeader, Select, StatusBadge, TableWrap, Tabs, TextInput, Narrow } from '../components/ui';
 import { FREQ } from './Fees';
 import type { RefValue, Term } from '../lib/types';
 
-interface Settings { schoolName: string; address: string | null; phone: string | null; email: string | null; registrationNo: string | null; receiptFooter: string | null; adminContactName: string | null; adminContactPhone: string | null; adminContactEmail: string | null; pupilIdStartYear: number; payrollEnabled: boolean }
+interface Settings { schoolName: string; address: string | null; phone: string | null; email: string | null; registrationNo: string | null; receiptFooter: string | null; adminContactName: string | null; adminContactPhone: string | null; adminContactEmail: string | null; pupilIdStartYear: number; payrollEnabled: boolean; approvalLimit: string | null }
 interface RefList { id: number; code: string; name: string; description: string | null; locked: boolean; values: Array<RefValue & { sortOrder: number }> }
 
 /** After any setup change, every dropdown in the app refreshes (FR-103). */
@@ -61,6 +61,7 @@ function School({ manage }: { manage: boolean }) {
         </fieldset>
         <div className="mt-3"><ErrorBox error={save.error} />{saved && <Notice tone="success">Saved.</Notice>}</div>
       </Card>
+      <ApprovalLimit manage={manage} current={f.approvalLimit} onSaved={(v) => setF({ ...f, approvalLimit: v })} />
       <Card title="Payroll posting">
         <p className="text-sm">Status: <StatusBadge status={f.payrollEnabled ? 'ACTIVE' : 'INACTIVE'} label={f.payrollEnabled ? 'Switched on' : 'Switched off'} /></p>
         <p className="mt-2 text-sm text-slate-600">While off, payroll can be prepared but no run can be approved into the accounts. Switch it on only after the PAYE bands and NSSF rates have been checked against current URA and NSSF rules and marked as checked under Payroll.</p>
@@ -68,6 +69,23 @@ function School({ manage }: { manage: boolean }) {
       </Card>
       <PayrollToggle open={confirmPayroll} on={!f.payrollEnabled} onClose={() => setConfirmPayroll(false)} onDone={() => setF({ ...f, payrollEnabled: !f.payrollEnabled })} />
     </Narrow>
+  );
+}
+
+function ApprovalLimit({ manage, current, onSaved }: { manage: boolean; current: string | null; onSaved: (v: string | null) => void }) {
+  const whole = (v: string | null) => (v === null ? '' : String(Number(v)));
+  const [value, setValue] = useState(whole(current));
+  const [saved, setSaved] = useState(false);
+  useEffect(() => setValue(whole(current)), [current]);
+  const m = useSetupMutation(() => api.patch<Settings>('/setup/settings', { approvalLimit: cleanAmount(value) || null }), () => setSaved(true));
+  return (
+    <Card title="Approval limit" actions={manage && <Button busy={m.isPending} onClick={() => { setSaved(false); m.mutate(undefined, { onSuccess: (r) => onSaved((r as Settings).approvalLimit) }); }}>Save</Button>}>
+      <p className="mb-3 text-sm text-slate-600">The head teacher approves discounts, payment reversals, expenses and payroll up to this amount. Anything above it must be approved by the school owner. Leave it empty for no limit.</p>
+      <fieldset disabled={!manage} className="max-w-xs">
+        <MoneyInput label="Limit (UGX)" value={value} onChange={(v) => { setSaved(false); setValue(v); }} placeholder="No limit" hint={current === null ? 'No limit is set.' : `Currently UGX ${formatMoney(current)}`} />
+      </fieldset>
+      <div className="mt-3"><ErrorBox error={m.error} />{saved && <Notice tone="success">Saved.</Notice>}</div>
+    </Card>
   );
 }
 
