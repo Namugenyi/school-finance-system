@@ -47,6 +47,19 @@ describe('reference data (FR-101 to FR-107)', () => {
     expect((await admin.patch(`/api/setup/reference-values/${v.id}`, { label: 'Staff Salaries' })).status).toBe(200);
   });
 
+  it('lets the administrator add, rename and use a new fee item (FR-404)', async () => {
+    const res = await admin.post('/api/setup/fee-items', { name: 'Computer Lessons', frequency: 'TERM', defaultMandatory: false });
+    expect(res.status).toBe(200);
+    expect((await admin.post('/api/setup/fee-items', { name: 'computer lessons', frequency: 'TERM', defaultMandatory: false })).status).toBe(409);
+    expect((await bursar.post('/api/setup/fee-items', { name: 'Music', frequency: 'TERM', defaultMandatory: false })).status).toBe(403);
+    expect((await admin.patch(`/api/setup/fee-items/${res.body.id}`, { name: 'School Fees' })).status).toBe(409);
+    expect((await admin.patch(`/api/setup/fee-items/${res.body.id}`, { name: 'ICT Lessons', frequency: 'YEAR' })).status).toBe(200);
+    const fees = await admin.put('/api/fees', { termId: w.terms.t1, classId: w.classes.p1, lines: [{ feeItemId: res.body.id, amount: '30000', mandatory: false }] });
+    expect(fees.status, JSON.stringify(fees.body)).toBe(200);
+    const lookups = (await bursar.get('/api/setup/lookups')).body;
+    expect(lookups.feeItems.find((f: { id: number }) => f.id === res.body.id)).toMatchObject({ name: 'ICT Lessons', frequency: 'YEAR', active: true });
+  });
+
   it('stores the academic year as one four-digit year (FR-106)', async () => {
     expect((await admin.post('/api/setup/years', { year: 26 })).status).toBe(400);
     expect((await admin.post('/api/setup/years', { year: 2026 })).status).toBe(409);

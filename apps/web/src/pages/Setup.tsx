@@ -168,6 +168,8 @@ function FeeItems({ manage }: { manage: boolean }) {
   const [f, setF] = useState({ name: '', frequency: 'TERM', defaultMandatory: false });
   const add = useSetupMutation(() => api.post('/setup/fee-items', f), () => setF({ name: '', frequency: 'TERM', defaultMandatory: false }));
   const update = useSetupMutation((v: { id: number; patch: Record<string, unknown> }) => api.patch(`/setup/fee-items/${v.id}`, v.patch));
+  const [rename, setRename] = useState<{ id: number; name: string } | null>(null);
+  const saveName = useSetupMutation(() => api.patch(`/setup/fee-items/${rename!.id}`, { name: rename!.name }), () => setRename(null));
   return (
     <Card title="Fee items" padded={false}>
       <p className="border-b border-slate-200 px-4 py-2 text-xs text-slate-600">How often decides what billing does: a once-only fee is skipped for a pupil already charged it, a yearly fee is skipped if already charged that year. Arrears B/F is used by carry-forward and cannot be billed.</p>
@@ -179,7 +181,10 @@ function FeeItems({ manage }: { manage: boolean }) {
             <td>{manage && !i.isSystem ? <select className="input w-40" aria-label={`${i.name} frequency`} value={i.frequency} onChange={(e) => update.mutate({ id: i.id, patch: { frequency: e.target.value } })}>{Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select> : FREQ[i.frequency]}</td>
             <td>{manage && !i.isSystem ? <input type="checkbox" aria-label={`${i.name} mandatory by default`} checked={i.defaultMandatory} onChange={(e) => update.mutate({ id: i.id, patch: { defaultMandatory: e.target.checked } })} /> : i.defaultMandatory ? 'Yes' : 'No'}</td>
             <td><StatusBadge status={i.active ? 'ACTIVE' : 'INACTIVE'} /></td>
-            {manage && <td className="text-right">{!i.isSystem && <Button variant="ghost" onClick={() => update.mutate({ id: i.id, patch: { active: !i.active } })}>{i.active ? 'Deactivate' : 'Reactivate'}</Button>}</td>}
+            {manage && <td className="whitespace-nowrap text-right">
+              <Button variant="ghost" aria-label={`Rename ${i.name}`} onClick={() => { saveName.reset(); setRename({ id: i.id, name: i.name }); }}>Rename</Button>
+              {!i.isSystem && <Button variant="ghost" onClick={() => update.mutate({ id: i.id, patch: { active: !i.active } })}>{i.active ? 'Deactivate' : 'Reactivate'}</Button>}
+            </td>}
           </tr>
         ))}</tbody>
       </table></TableWrap>
@@ -192,6 +197,11 @@ function FeeItems({ manage }: { manage: boolean }) {
         </div>
       )}
       <div className="px-4 pb-3"><ErrorBox error={add.error ?? update.error} /></div>
+      <Modal open={!!rename} title="Rename fee item" onClose={() => setRename(null)}
+        footer={<><Button variant="secondary" onClick={() => setRename(null)}>Cancel</Button><Button busy={saveName.isPending} disabled={!rename?.name.trim()} onClick={() => saveName.mutate(undefined)}>Save</Button></>}>
+        {rename && <TextInput label="Fee item name" value={rename.name} maxLength={80} onChange={(e) => setRename({ ...rename, name: e.target.value })} hint="The new name shows on fee structures, bills, receipts and statements, including past ones." />}
+        <ErrorBox error={saveName.error} />
+      </Modal>
     </Card>
   );
 }

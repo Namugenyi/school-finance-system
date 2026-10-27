@@ -352,6 +352,7 @@ router.patch(
     const before = await prisma.feeItem.findUnique({ where: { id } });
     if (!before) throw notFound('Fee item');
     if (before.isSystem && (body.active === false || body.frequency)) throw badRequest('Arrears B/F is used by carry-forward and cannot be deactivated or changed');
+    if (body.name && (await prisma.feeItem.findFirst({ where: { id: { not: id }, name: { equals: body.name, mode: 'insensitive' } } }))) throw conflict(`Fee item "${body.name}" already exists`);
     const after = await prisma.feeItem.update({ where: { id }, data: body });
     await audit(prisma, currentUser(req), 'feeitem.update', 'FeeItem', id, { before, after });
     return after;
