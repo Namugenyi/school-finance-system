@@ -410,7 +410,7 @@ describe('Payroll (FR-900, BR-08 to BR-10, BR-14, FRS 6.2)', () => {
   const paye = async (salary: string) => {
     await prisma.payrollEntry.deleteMany();
     await prisma.payrollRun.deleteMany();
-    await prisma.staff.updateMany({ data: { status: 'INACTIVE' } });
+    await prisma.staff.updateMany({ data: { status: 'RESIGNED' } });
     await bursar.post('/api/payroll/staff', { fullName: `S ${salary}`, jobRole: 'Teacher', employmentType: 'PERMANENT', basicSalary: salary, startDate: '2025-01-01' });
     const run = await bursar.post('/api/payroll/runs', { year: 2026, month: 3 });
     expect(run.status, JSON.stringify(run.body)).toBe(200);

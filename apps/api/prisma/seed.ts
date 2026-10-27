@@ -80,7 +80,7 @@ async function main() {
   const lookups = await admin.get('/api/setup/lookups');
   const section = (code: string) => lookups.sections.find((s: { code: string }) => s.code === code).id;
   const classes: Array<{ id: number; name: string }> = [];
-  for (const [i, name] of ['Baby Class', 'Middle Class', 'Top Class'].entries()) classes.push(await admin.post('/api/setup/classes', { name, sectionId: section('KG'), sortOrder: i + 1 }));
+  for (const [i, name] of ['Daycare', 'Baby Class', 'Middle Class', 'Top Class'].entries()) classes.push(await admin.post('/api/setup/classes', { name, sectionId: section('KG'), sortOrder: i + 1 }));
   const item = (code: string) => lookups.feeItems.find((f: { code: string }) => f.code === code).id;
 
   // Fee structure for term 1, copied to terms 2 and 3.
@@ -186,7 +186,7 @@ async function main() {
     ['Juliet Nakku', 'Nursery teacher', 'PERMANENT', '500000'], ['Sam Ochieng', 'Cook', 'CONTRACT', '300000'],
     ['Agnes Nakimuli', 'Matron', 'CONTRACT', '280000'], ['Paul Kigozi', 'Security guard', 'CASUAL', '250000'],
   ]) {
-    await bursar.post('/api/payroll/staff', { fullName, jobRole, department: jobRole.includes('teacher') || jobRole.includes('Head') ? 'Teaching' : 'Support', employmentType, basicSalary, startDate: '2025-01-06' });
+    await bursar.post('/api/payroll/staff', { fullName, jobRole, department: jobRole.includes('teacher') || jobRole.includes('Head') ? 'Teaching' : 'Support', employmentType, basicSalary, startDate: '2025-01-06', payTo: `MTN 07${String(72000000 + fullName.length * 1111).slice(0, 8)} (demo)` });
   }
   const rates = await prisma.statutoryRateSet.findFirstOrThrow();
   await prisma.statutoryRateSet.update({ where: { id: rates.id }, data: { validated: true, validatedBy: 'DEMO ONLY: not checked by a payroll professional' } });

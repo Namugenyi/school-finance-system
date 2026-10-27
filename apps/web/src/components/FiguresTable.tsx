@@ -4,6 +4,7 @@ import type { Figures } from '../lib/types';
 /** One place that names each headline figure, so reports, close and snapshots read the same. */
 export const FIGURE_ROWS: Array<{ key: string; label: string; hint?: string; kind?: 'count' | 'rate'; strong?: boolean }> = [
   { key: 'activePupils', label: 'Active pupils', kind: 'count' },
+  { key: 'pupilsBilled', label: 'Pupils billed', hint: 'Each pupil with a charge in the period, counted once', kind: 'count' },
   { key: 'grossBilled', label: 'Gross billed (before discounts)' },
   { key: 'totalDiscounts', label: 'Approved discounts' },
   { key: 'totalBilled', label: 'Total billed', hint: 'Net of discounts, excluding arrears brought forward', strong: true },

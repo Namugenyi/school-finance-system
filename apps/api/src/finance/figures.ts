@@ -29,6 +29,8 @@ export function collectionRate(collected: Decimal, billed: Decimal): Decimal | n
 
 export interface Figures {
   activePupils: number | null;
+  /** v14 "Pupils Billed": distinct pupils with at least one charge in the period (Arrears B/F alone does not count). */
+  pupilsBilled: number;
   grossBilled: Decimal;
   totalDiscounts: Decimal;
   /** D-02: net of approved discounts. D-01: excludes Arrears B/F. */
@@ -60,6 +62,7 @@ export async function computeFigures(db: Db, scope: Scope): Promise<Figures> {
     db.chargeBalance.aggregate({ where: { ...where, balance: { lt: 0 } }, _sum: { balance: true } }),
     db.expense.groupBy({ by: ['fundingSource'], where: expenseWhere(scope), _sum: { amount: true } }),
   ]);
+  const pupilsBilled = (await db.chargeBalance.groupBy({ by: ['pupilId'], where: { ...where, isArrears: false } })).length;
   const bucket = { SCHOOL: ZERO, OWNER: ZERO, OTHER: ZERO };
   for (const e of expenses) {
     const b = fundingBucket(e.fundingSource);
@@ -87,6 +90,7 @@ export async function computeFigures(db: Db, scope: Scope): Promise<Figures> {
 
   return {
     activePupils,
+    pupilsBilled,
     grossBilled: dec(current._sum.amountCharged),
     totalDiscounts: dec(current._sum.discount),
     totalBilled,

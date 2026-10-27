@@ -44,8 +44,9 @@ router.get(
     }
     const pupils = await prisma.pupil.findMany({
       where: { id: { in: [...byPupil.keys()] } },
-      include: { schoolClass: true },
+      include: { schoolClass: { include: { section: true } } },
     });
+    const statusLabels = await prisma.referenceValue.findMany({ where: { list: { code: 'PUPIL_STATUS' } } });
     const showContacts = hasPermission(req.user, 'pupils.contacts');
     let rows = pupils.map((p) => {
       const t = byPupil.get(p.id)!;
@@ -54,6 +55,7 @@ router.get(
         pupilId: p.id,
         pupilCode: p.pupilCode,
         pupilName: p.fullName,
+        sectionName: p.schoolClass.section.name,
         className: p.schoolClass.name,
         pupilStatus: p.status,
         guardianName: p.guardianName,
@@ -80,8 +82,8 @@ router.get(
       sendCsv(
         res,
         'arrears.csv',
-        ['Pupil ID', 'Pupil', 'Class', 'Parent/Guardian', 'Phone', 'Alt phone', 'Total billed', 'Total paid', 'Outstanding', 'Unpaid items', 'Status'],
-        rows.map((r) => [r.pupilCode, r.pupilName, r.className, r.guardianName, r.phonePrimary, r.phoneAlt, r.totalBilled, r.totalPaid, r.outstanding, r.unpaidItems, r.statusLabel]),
+        ['#', 'Pupil ID', 'Pupil', 'Section', 'Class', 'Pupil status', 'Parent/Guardian', 'Phone', 'Alt phone', 'Total billed', 'Total paid', 'Outstanding', 'Unpaid items', 'Payment status'],
+        rows.map((r, i) => [i + 1, r.pupilCode, r.pupilName, r.sectionName, r.className, statusLabels.find((v) => v.code === r.pupilStatus)?.label ?? r.pupilStatus, r.guardianName, r.phonePrimary, r.phoneAlt, r.totalBilled, r.totalPaid, r.outstanding, r.unpaidItems, r.statusLabel]),
       );
       return;
     }

@@ -11,24 +11,34 @@ import { AXIS, GRID, SERIES, compactUGX } from '../components/charts';
 import type { Figures } from '../lib/types';
 
 interface Dashboard {
-  term: { id: number; label: string; status: string };
+  term: { id: number | null; label: string; status: string | null };
+  year: { id: number; year: number };
   figures: Figures;
-  byClass: Array<{ classId: number; className: string; totalBilled: string; totalCollected: string; outstanding: string; collectionRate: string | null }>;
-  expensesByCategory: Array<{ categoryLabel: string; schoolFunded: string; ownerFunded: string; otherFunded: string; total: string }>;
+  byClass: Array<{ classId: number; className: string; totalBilled: string; totalCollected: string; outstanding: string; collectionRate: string | null; status: string }>;
+  expensesByCategory: Array<{ categoryLabel: string; schoolFunded: string; ownerFunded: string; otherFunded: string; total: string; share: string | null }>;
   weeklyCollections: Array<{ week: string; amount: string }>;
   termsTrend: Array<{ termLabel: string; totalBilled: string; totalCollected: string; outstanding: string }>;
   pendingApprovals: Record<string, number>;
 }
 
 const n = (v: unknown) => Number(v ?? 0);
+const CLASS_STATUS: Record<string, { label: string; cls: string }> = {
+  ALL_PAID: { label: 'All paid', cls: 'bg-emerald-100 text-emerald-800 ring-emerald-600/20' },
+  PARTIAL: { label: 'Partial', cls: 'bg-amber-100 text-amber-900 ring-amber-600/30' },
+  NONE_PAID: { label: 'None paid', cls: 'bg-red-100 text-red-800 ring-red-600/20' },
+  NO_DATA: { label: 'No data', cls: 'bg-slate-100 text-slate-600 ring-slate-500/20' },
+};
 const tip = (v: number) => `UGX ${formatMoney(v)}`;
+
+const d_isYear = (v: string) => v.startsWith('y:');
 
 export function DashboardPage() {
   const { can } = useAuth();
   const navigate = useNavigate();
   const [term, setTerm] = useState('');
-  const termId = scopeParams(term).termId;
-  const q = useQuery({ queryKey: ['dashboard', termId], queryFn: () => api.get<Dashboard>(`/dashboard${qs({ termId })}`), enabled: !!termId });
+  const scope = scopeParams(term);
+  const q = useQuery({ queryKey: ['dashboard', scope.termId, scope.academicYearId], queryFn: () => api.get<Dashboard>(`/dashboard${qs(scope)}`), enabled: !!(scope.termId || scope.academicYearId) });
+  const wholeYear = !!d_isYear(term);
   const d = q.data;
   const f = d?.figures;
   const net = n(f?.netResult);
@@ -38,19 +48,19 @@ export function DashboardPage() {
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle={d ? <>Headline figures for <strong>{d.term.label}</strong> <StatusBadge status={d.term.status} /></> : 'Headline figures for one term'}
-        actions={<TermSelect value={term} onChange={setTerm} className="w-56" />}
+        subtitle={d ? <>Headline figures for <strong>{d.term.label}</strong> {d.term.status && <StatusBadge status={d.term.status} />}</> : 'Headline figures for a term or a whole year'}
+        actions={<TermSelect value={term} onChange={setTerm} allowYear className="w-56" />}
       />
       {q.isLoading && <Loading />}
       <ErrorBox error={q.error} />
       {f && d && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <Stat label="Active pupils" value={f.activePupils ?? 'n/a'} />
+            <Stat label="Active pupils" value={f.activePupils ?? 'n/a'} hint={`${f.pupilsBilled ?? 0} billed ${wholeYear ? 'this year' : 'this term'}`} />
             <Stat label="Total billed" value={formatMoney(f.totalBilled as string)} hint="After approved discounts" />
             <Stat label="Total collected" value={formatMoney(f.totalCollected as string)} />
             <Stat label="Outstanding" value={formatMoney(f.outstanding as string)} tone={n(f.outstanding) > 0 ? 'bad' : 'good'} hint={n(f.arrearsBroughtForward) > 0 ? `Includes arrears brought forward of ${formatMoney(f.arrearsBroughtForward as string)}` : undefined} />
-            <Stat label="Collection rate" value={formatRate(f.collectionRate as string | null)} hint="Collected on this term's billing ÷ billed" />
+            <Stat label="Collection rate" value={formatRate(f.collectionRate as string | null)} hint={wholeYear ? "Collected on this year's billing ÷ billed" : "Collected on this term's billing ÷ billed"} />
             <Stat label="Total expenses" value={formatMoney(f.totalExpenses as string)} />
             <Stat label="School-funded" value={formatMoney(f.schoolFundedExpenses as string)} />
             <Stat label="Owner-funded" value={formatMoney(f.ownerFundedExpenses as string)} hint="Owner contributions and loans" />
@@ -70,7 +80,7 @@ export function DashboardPage() {
           )}
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card title={`Billed and collected by term, ${d.term.label.split(' ').pop()}`}>
+            <Card title={`Billed and collected by term, ${d.year.year}`}>
               {d.termsTrend.every((t) => n(t.totalBilled) === 0 && n(t.totalCollected) === 0) ? (
                 <Empty title="Nothing billed yet this year" />
               ) : (
@@ -90,9 +100,9 @@ export function DashboardPage() {
               )}
             </Card>
 
-            <Card title="Cash collected per week this term">
+            <Card title={wholeYear ? `Cash collected per week, ${d.year.year}` : 'Cash collected per week this term'}>
               {d.weeklyCollections.length === 0 ? (
-                <Empty title="No payments recorded for this term yet" />
+                <Empty title={wholeYear ? 'No payments recorded for this year yet' : 'No payments recorded for this term yet'} />
               ) : (
                 <div className="h-64" role="img" aria-label="Line chart of money collected each week">
                   <ResponsiveContainer>
@@ -108,12 +118,13 @@ export function DashboardPage() {
               )}
             </Card>
 
-            <Card title="Outstanding by class" padded={false}>
+            <Card title="Outstanding by class" padded={false} className="lg:col-span-2">
               {d.byClass.length === 0 ? (
-                <div className="p-4"><Empty title="No charges in this term" /></div>
+                <div className="p-4"><Empty title={wholeYear ? 'No charges in this year' : 'No charges in this term'} /></div>
               ) : (
+                <div className="overflow-x-auto">
                 <table className="table">
-                  {can('arrears.view') && <caption className="caption-bottom px-3 py-2 text-left text-xs text-slate-500">Choose a class to see the pupils in it who still owe for this term.</caption>}
+                  {can('arrears.view') && <caption className="caption-bottom px-3 py-2 text-left text-xs text-slate-500">Choose a class to see the pupils in it who still owe for {wholeYear ? 'this year' : 'this term'}.</caption>}
                   <thead><tr><th>Class</th><th className="num">Billed</th><th className="num">Collected</th><th className="num">Outstanding</th><th className="num">Rate</th></tr></thead>
                   <tbody>
                     {d.byClass.map((c) => {
@@ -124,8 +135,9 @@ export function DashboardPage() {
                         onClick={can('arrears.view') ? (e) => { if (!(e.target as HTMLElement).closest('a')) navigate(to); } : undefined}>
                         <td className="font-medium">
                           {can('arrears.view')
-                            ? <Link to={to} className="link inline-flex items-center gap-1" aria-label={`${c.className}: see pupils who owe for this term`}>{c.className}<span aria-hidden className="text-slate-400">›</span></Link>
+                            ? <Link to={to} className="link inline-flex items-center gap-1" aria-label={`${c.className}: see pupils who owe for ${wholeYear ? 'this year' : 'this term'}`}>{c.className}<span aria-hidden className="text-slate-400">›</span></Link>
                             : c.className}
+                          <span className={`mt-1 flex w-fit whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${CLASS_STATUS[c.status]?.cls ?? ''}`}>{CLASS_STATUS[c.status]?.label ?? c.status}</span>
                         </td>
                         <td className="num">{formatMoney(c.totalBilled)}</td>
                         <td className="num">{formatMoney(c.totalCollected)}</td>
@@ -136,12 +148,13 @@ export function DashboardPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
               )}
             </Card>
 
-            <Card title="Expenses by category and funding">
+            <Card title="Expenses by category and funding" className="lg:col-span-2">
               {d.expensesByCategory.length === 0 ? (
-                <Empty title="No approved expenses in this term" />
+                <Empty title={wholeYear ? 'No approved expenses in this year' : 'No approved expenses in this term'} />
               ) : (
                 <div style={{ height: Math.max(220, d.expensesByCategory.length * 34 + 60) }} role="img" aria-label="Stacked bar chart of expenses by category, split by funding source">
                   <ResponsiveContainer>
@@ -157,6 +170,17 @@ export function DashboardPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+              )}
+              {d.expensesByCategory.length > 0 && (
+                <table className="table mt-3">
+                  <thead><tr><th>Category</th><th className="num">Amount</th><th className="num">Share of total</th></tr></thead>
+                  <tbody>
+                    {d.expensesByCategory.map((e) => (
+                      <tr key={e.categoryLabel}><td>{e.categoryLabel}</td><td className="num">{formatMoney(e.total)}</td><td className="num">{formatRate(e.share)}</td></tr>
+                    ))}
+                  </tbody>
+                  <tfoot><tr className="font-semibold"><td>Total</td><td className="num">{formatMoney(f.totalExpenses as string)}</td><td className="num">100%</td></tr></tfoot>
+                </table>
               )}
             </Card>
           </div>

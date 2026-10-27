@@ -24,6 +24,9 @@ export async function seedBase(db: PrismaClient, opts: { schoolName?: string; st
       update: { locked: list.locked, description: list.description, sortOrder: i },
     });
     for (const [j, v] of list.values.entries()) {
+      // A value someone already added by hand under the same label is kept as it is.
+      const sameLabel = await db.referenceValue.findFirst({ where: { listId: l.id, code: { not: v.code }, label: { equals: v.label, mode: 'insensitive' } } });
+      if (sameLabel) continue;
       await db.referenceValue.upsert({
         where: { listId_code: { listId: l.id, code: v.code } },
         create: { listId: l.id, code: v.code, label: v.label, sortOrder: j + 1, isSystem: v.system ?? false },

@@ -96,10 +96,10 @@ function ByTerm({ yearId }: { yearId?: number }) {
         )}
         <TableWrap>
           <table className="table">
-            <thead><tr><th>Term</th><th>Status</th><th className="num">Billed</th><th className="num">Arrears B/F</th><th className="num">Collected</th><th className="num">Carried out</th><th className="num">Outstanding</th><th className="num">Collection rate</th></tr></thead>
+            <thead><tr><th>Term</th><th>Status</th><th className="num">Pupils billed</th><th className="num">Billed</th><th className="num">Arrears B/F</th><th className="num">Collected</th><th className="num">Carried out</th><th className="num">Outstanding</th><th className="num">Collection rate</th></tr></thead>
             <tbody>
               {q.data?.map((t) => (
-                <tr key={t.termId}><td>{t.termLabel}</td><td><StatusBadge status={t.status} /></td><M v={t.totalBilled} /><M v={t.arrearsBroughtForward} /><M v={t.totalCollected} /><M v={t.carriedForwardOut} /><M v={t.outstanding} strong /><td className="num">{formatRate(t.collectionRate)}</td></tr>
+                <tr key={t.termId}><td>{t.termLabel}</td><td><StatusBadge status={t.status} /></td><td className="num">{t.pupilsBilled}</td><M v={t.totalBilled} /><M v={t.arrearsBroughtForward} /><M v={t.totalCollected} /><M v={t.carriedForwardOut} /><M v={t.outstanding} strong /><td className="num">{formatRate(t.collectionRate)}</td></tr>
               ))}
             </tbody>
           </table>
@@ -136,15 +136,15 @@ function ByItem({ params }: P) {
 }
 
 function ByExpense({ params }: P) {
-  const q = useReport<Array<{ category: string; categoryLabel: string; schoolFunded: string; ownerFunded: string; otherFunded: string; total: string }>>('expenses-by-category', params);
+  const q = useReport<Array<{ category: string; categoryLabel: string; schoolFunded: string; ownerFunded: string; otherFunded: string; total: string; share: string | null }>>('expenses-by-category', params);
   const sum = (k: 'schoolFunded' | 'ownerFunded' | 'otherFunded' | 'total') => (q.data ?? []).reduce((s, r) => s + Number(r[k]), 0);
   return (
     <Section title="Approved expenses by category" csv={`/reports/expenses-by-category${qs({ ...params, format: 'csv' })}`} q={q}>
       {q.data?.length === 0 ? <div className="p-4"><Empty title="No approved expenses for this period" /></div> : (
         <TableWrap><table className="table">
-          <thead><tr><th>Category</th><th className="num">School funds</th><th className="num">Owner funds</th><th className="num">Other funding</th><th className="num">Total</th></tr></thead>
-          <tbody>{q.data?.map((c) => <tr key={c.category}><td>{c.categoryLabel}</td><M v={c.schoolFunded} /><M v={c.ownerFunded} /><M v={c.otherFunded} /><M v={c.total} strong /></tr>)}</tbody>
-          <tfoot className="font-semibold"><tr><td className="px-3 py-2">Total</td><M v={sum('schoolFunded')} /><M v={sum('ownerFunded')} /><M v={sum('otherFunded')} /><M v={sum('total')} /></tr></tfoot>
+          <thead><tr><th>Category</th><th className="num">School funds</th><th className="num">Owner funds</th><th className="num">Other funding</th><th className="num">Total</th><th className="num">Share</th><th className="num">% owner-funded</th></tr></thead>
+          <tbody>{q.data?.map((c) => <tr key={c.category}><td>{c.categoryLabel}</td><M v={c.schoolFunded} /><M v={c.ownerFunded} /><M v={c.otherFunded} /><M v={c.total} strong /><td className="num">{formatRate(c.share)}</td><td className="num">{formatRate(Number(c.total) > 0 ? String(Number(c.ownerFunded) / Number(c.total)) : null)}</td></tr>)}</tbody>
+          <tfoot className="font-semibold"><tr><td className="px-3 py-2">Total</td><M v={sum('schoolFunded')} /><M v={sum('ownerFunded')} /><M v={sum('otherFunded')} /><M v={sum('total')} /><td className="num">100%</td><td className="num">{formatRate(sum('total') > 0 ? String(sum('ownerFunded') / sum('total')) : null)}</td></tr></tfoot>
         </table></TableWrap>
       )}
     </Section>

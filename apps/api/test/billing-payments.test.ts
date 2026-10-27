@@ -244,3 +244,46 @@ describe('arrears list and statements (FR-1301 to FR-1405)', () => {
     expect(dash.byClass.find((c: { classId: number }) => c.classId === w.classes.p1).outstanding).toBe(p1.totals.outstanding);
   });
 });
+
+describe('v14 workbook views (dashboard year, pupils billed, class status, expense share)', () => {
+  it('shows a whole year on the dashboard with pupils billed, class status words and expense shares', async () => {
+    await standardFees(w.terms.t1);
+    await standardFees(w.terms.t2);
+    const a = await createPupil(bursar, w, 'Year Ann');
+    const b = await createPupil(bursar, w, 'Year Ben');
+    await bill(bursar, w.terms.t1, w.classes.p1, [
+      { key: `${a.id}:${w.items.SWIMMING}`, include: false }, { key: `${a.id}:${w.items.UNIFORM}`, include: false },
+      { key: `${b.id}:${w.items.SWIMMING}`, include: false }, { key: `${b.id}:${w.items.UNIFORM}`, include: false },
+    ]);
+    await bill(bursar, w.terms.t2, w.classes.p1, [
+      { key: `${a.id}:${w.items.SWIMMING}`, include: false }, { key: `${a.id}:${w.items.UNIFORM}`, include: false },
+      { key: `${b.id}:${w.items.SWIMMING}`, include: false }, { key: `${b.id}:${w.items.UNIFORM}`, include: false },
+    ]);
+    const t1a = (await chargesOf(bursar, a.id, w.terms.t1)).find((c) => c.feeItemName === 'School Fees')!;
+    await pay(bursar, a.id, [{ chargeId: t1a.id, amount: '100000' }]);
+    for (const [category, amount] of [['RENT', '150000'], ['WATER', '50000']]) {
+      const e = (await bursar.post('/api/expenses', { expenseDate: '2026-03-10', termId: w.terms.t1, category, description: `${category} bill`, amount, fundingSource: 'SCHOOL_FUNDS', method: 'CASH' })).body;
+      await head.post(`/api/expenses/${e.id}/decide`, { approve: true });
+    }
+
+    const term = (await bursar.get(`/api/dashboard?termId=${w.terms.t1}`)).body;
+    expect(term.figures.pupilsBilled).toBe(2);
+    expect(term.byClass.find((c: { classId: number }) => c.classId === w.classes.p1).status).toBe('PARTIAL');
+    expect(term.expensesByCategory.map((e: { category: string; share: string }) => [e.category, e.share])).toEqual([['RENT', '0.7500'], ['WATER', '0.2500']]);
+
+    const year = (await bursar.get(`/api/dashboard?academicYearId=${w.yearId}`)).body;
+    expect(year.term).toMatchObject({ id: null, label: 'All terms 2026' });
+    expect(year.figures.totalBilled).toBe('2000000.00'); // term 1: 2 × 550,000; term 2: 2 × 450,000 (admission is once only)
+    expect(year.figures.pupilsBilled).toBe(2);
+    expect(year.figures.totalCollected).toBe('100000.00');
+    expect(year.weeklyCollections.reduce((s: number, w: { amount: string }) => s + Number(w.amount), 0)).toBe(100000);
+
+    const byTerm = (await bursar.get(`/api/reports/collection-by-term?academicYearId=${w.yearId}`)).body;
+    expect(byTerm.map((t: { pupilsBilled: number }) => t.pupilsBilled)).toEqual([2, 2, 0]);
+
+    const unbilled = await createPupil(bursar, w, 'Nothing Billed', w.classes.p2);
+    expect(unbilled.id).toBeTruthy();
+    const arrears = (await bursar.get(`/api/collections/arrears?termId=${w.terms.t1}`)).body;
+    expect(arrears.rows[0]).toMatchObject({ sectionName: 'Primary', className: 'P1' });
+  });
+});

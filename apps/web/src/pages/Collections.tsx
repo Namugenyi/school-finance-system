@@ -8,7 +8,7 @@ import { Button, Card, Dt, Empty, ErrorBox, Loading, Money, PageHeader, Select, 
 import { TermSelect, scopeParams } from '../components/TermSelect';
 import type { Charge, Paged } from '../lib/types';
 
-interface ArrearsRow { pupilId: number; pupilCode: string; pupilName: string; className: string; pupilStatus: string; guardianName: string | null; phonePrimary: string | null; phoneAlt: string | null; totalBilled: string; totalPaid: string; outstanding: string; unpaidItems: number; status: string; statusLabel: string }
+interface ArrearsRow { pupilId: number; pupilCode: string; pupilName: string; sectionName: string; className: string; pupilStatus: string; guardianName: string | null; phonePrimary: string | null; phoneAlt: string | null; totalBilled: string; totalPaid: string; outstanding: string; unpaidItems: number; status: string; statusLabel: string }
 
 export function ArrearsPage() {
   const { lookups } = useLookups();
@@ -58,13 +58,14 @@ export function ArrearsPage() {
         {q.isLoading ? <Loading /> : q.data?.rows.length === 0 ? <div className="p-4"><Empty title="Nobody owes anything for this selection" /></div> : (
           <TableWrap>
             <table className="table">
-              <thead><tr><th>Pupil ID</th><th>Pupil</th><th>Class</th><th>Status</th><th>Parent / guardian</th>{!q.data?.contactsHidden && <th>Phone</th>}<th className="num">Billed</th><th className="num">Paid</th><th className="num">Outstanding</th><th className="num">Unpaid items</th></tr></thead>
+              <thead><tr><th className="num">#</th><th>Pupil ID</th><th>Pupil</th><th>Class</th><th>Status</th><th>Parent / guardian</th>{!q.data?.contactsHidden && <th>Phone</th>}<th className="num">Billed</th><th className="num">Paid</th><th className="num">Outstanding</th><th className="num">Unpaid items</th></tr></thead>
               <tbody>
-                {q.data?.rows.map((r) => (
+                {q.data?.rows.map((r, i) => (
                   <tr key={r.pupilId} className={Number(r.outstanding) > 0 ? 'bg-red-50/40' : 'bg-emerald-50/40'}>
+                    <td className="num text-xs text-slate-500">{i + 1}</td>
                     <td className="font-mono text-xs">{r.pupilCode}</td>
                     <td><Link to={`/statements/${r.pupilId}`} className="link">{r.pupilName}</Link>{r.pupilStatus !== 'ACTIVE' && <span className="ml-1"><StatusBadge status={r.pupilStatus} /></span>}</td>
-                    <td>{r.className}</td>
+                    <td>{r.className} <span className="text-xs text-slate-500">{r.sectionName}</span></td>
                     <td><StatusBadge status={r.status} label={r.statusLabel} /></td>
                     <td>{r.guardianName}</td>
                     {!q.data?.contactsHidden && <td className="text-xs">{r.phonePrimary}{r.phoneAlt && <span className="block">{r.phoneAlt}</span>}</td>}

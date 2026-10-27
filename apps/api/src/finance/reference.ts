@@ -118,6 +118,7 @@ export const REFERENCE_LISTS: RefSeed[] = [
       { code: 'CONTRACT', label: 'Contract' },
       { code: 'PART_TIME', label: 'Part-time' },
       { code: 'CASUAL', label: 'Casual' },
+      { code: 'VOLUNTEER', label: 'Volunteer' },
     ],
   },
 ];

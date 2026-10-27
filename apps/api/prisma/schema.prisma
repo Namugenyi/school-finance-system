@@ -521,10 +521,13 @@ model Staff {
   employmentType String
   basicSalary    Decimal        @db.Decimal(14, 2)
   startDate      DateTime       @db.Date
-  status         String         @default("ACTIVE") // ACTIVE | INACTIVE
+  status         String         @default("ACTIVE") // ACTIVE | ON_LEAVE | RESIGNED | TERMINATED (only ACTIVE is paid)
   phone          String?
   nssfNo         String?
   tin            String?
+  // v14 staff register: where pay goes (bank account or mobile money number) and free notes.
+  payTo          String?
+  notes          String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   entries        PayrollEntry[]

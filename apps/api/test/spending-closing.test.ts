@@ -155,6 +155,21 @@ describe('payroll (FR-901 to FR-908, WR-16, WR-17, D-07, E2E-12/13)', () => {
     expect(list.find((x: { id: number }) => x.id === teacher.staffId).payToDate).toMatchObject({ months: 2, basic: '1000000.00' });
   });
 
+  it('keeps the v14 staff register details: where pay goes, notes and estimated deductions', async () => {
+    const res = await bursar.post('/api/payroll/staff', { fullName: 'Volunteer Vera', jobRole: 'Reading helper', employmentType: 'VOLUNTEER', basicSalary: '500000', startDate: '2026-01-05', payTo: 'MTN 0772 000 111', notes: 'Mornings only' });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    const vera = (await bursar.get('/api/payroll/staff')).body.find((s: { id: number }) => s.id === res.body.id);
+    expect(vera).toMatchObject({ payTo: 'MTN 0772 000 111', notes: 'Mornings only', employmentType: 'VOLUNTEER' });
+    expect(vera.estimate).toMatchObject({ nssfEmployee: '25000.00', nssfEmployer: '50000.00', paye: '52000.00', net: '423000.00' });
+
+    // v14 staff statuses: only Active staff are paid.
+    expect((await bursar.patch(`/api/payroll/staff/${vera.id}`, { status: 'ON_LEAVE' })).status).toBe(200);
+    expect((await bursar.patch(`/api/payroll/staff/${vera.id}`, { status: 'INACTIVE' })).status).toBe(400);
+    await bursar.post('/api/payroll/staff', { fullName: 'Active Amos', jobRole: 'Cook', employmentType: 'CONTRACT', basicSalary: '300000', startDate: '2026-01-05' });
+    const run = (await bursar.post('/api/payroll/runs', { year: 2026, month: 3 })).body;
+    expect(run.entries.map((e: { fullName: string }) => e.fullName)).toEqual(['Active Amos']);
+  });
+
   it('rejects other deductions that make net pay negative (A-19)', async () => {
     const run = await staffAndRun();
     const entry = run.entries[1];

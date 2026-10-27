@@ -29,10 +29,13 @@ const staffBody = z.object({
   employmentType: z.string(),
   basicSalary: moneyInput,
   startDate: z.string(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  // v14 staff statuses; only Active staff are paid in a payroll run.
+  status: z.enum(['ACTIVE', 'ON_LEAVE', 'RESIGNED', 'TERMINATED']).optional(),
   phone: z.string().trim().max(30).transform((v) => v || null).nullable().optional(),
   nssfNo: z.string().trim().max(40).transform((v) => v || null).nullable().optional(),
   tin: z.string().trim().max(40).transform((v) => v || null).nullable().optional(),
+  payTo: z.string().trim().max(120).transform((v) => v || null).nullable().optional(),
+  notes: z.string().trim().max(500).transform((v) => v || null).nullable().optional(),
 });
 
 const serializeStaff = (s: Awaited<ReturnType<typeof prisma.staff.findFirstOrThrow>>) => ({
@@ -64,11 +67,23 @@ router.get(
   '/staff',
   requirePermission('payroll.view'),
   handle(async () => {
-    const year = new Date().getFullYear();
-    const [staff, entries] = await Promise.all([prisma.staff.findMany({ orderBy: { staffCode: 'asc' } }), postedEntries()]);
+    const now = new Date();
+    const year = now.getFullYear();
+    const [staff, entries, rates] = await Promise.all([
+      prisma.staff.findMany({ orderBy: { staffCode: 'asc' } }),
+      postedEntries(),
+      prisma.statutoryRateSet.findFirst({ where: { effectiveFrom: { lte: now } }, include: { bands: true }, orderBy: { effectiveFrom: 'desc' } }),
+    ]);
     return staff.map((s) => {
       const mine = entries.filter((e) => e.staffId === s.id);
-      return { ...serializeStaff(s), payThisYear: payTotals(mine.filter((e) => e.run.year === year)), payToDate: payTotals(mine) };
+      // v14 staff register: this month's NSSF, PAYE and net pay on the current basic salary, before other deductions.
+      const est = rates ? computePayLine(s.basicSalary, rates, 0, s.fullName) : null;
+      return {
+        ...serializeStaff(s),
+        estimate: est && { nssfEmployee: money(est.nssfEmployee), nssfEmployer: money(est.nssfEmployer), paye: money(est.paye), net: money(est.net) },
+        payThisYear: payTotals(mine.filter((e) => e.run.year === year)),
+        payToDate: payTotals(mine),
+      };
     });
   }),
 );

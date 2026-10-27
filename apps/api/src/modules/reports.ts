@@ -20,6 +20,13 @@ export function scopeFromQuery(q: Record<string, unknown>): Scope {
 
 const rate = (r: ReturnType<typeof collectionRate>) => (r === null ? null : r.toFixed(4));
 
+/** v14 dashboard status word per class: No Data, All Paid, Partial or None Paid. */
+export function classStatus(billed: ReturnType<typeof dec>, outstanding: ReturnType<typeof dec>, collected: ReturnType<typeof dec>) {
+  if (billed.lte(0)) return 'NO_DATA';
+  if (outstanding.lte(0)) return 'ALL_PAID';
+  return collected.gt(0) ? 'PARTIAL' : 'NONE_PAID';
+}
+
 /** FR-1602: outstanding by class, using the class on the charge (A-18). */
 export async function outstandingByClass(db: Db, scope: Scope) {
   const [groups, positive, classes] = await Promise.all([
@@ -38,6 +45,7 @@ export async function outstandingByClass(db: Db, scope: Scope) {
         classId: c.id, className: c.name, sectionName: c.section.name, totalBilled: money(billed), arrearsBroughtForward: money(arrearsBf),
         totalCollected: money(collected), outstanding: money(out?._sum.balance), chargesWithBalance: out?._count.pupilId ?? 0,
         collectionRate: rate(collectionRate(collectedCurrent, billed)),
+        status: classStatus(billed.plus(arrearsBf), dec(out?._sum.balance), collected),
       };
     })
     .filter((r) => dec(r.totalBilled).gt(0) || dec(r.outstanding).gt(0) || dec(r.arrearsBroughtForward).gt(0));
@@ -69,6 +77,7 @@ export async function expensesByCategory(db: Db, scope: Scope) {
     }),
     db.referenceValue.findMany({ where: { list: { code: 'EXPENSE_CATEGORY' } }, orderBy: { sortOrder: 'asc' } }),
   ]);
+  const grand = groups.reduce((sum, g) => sum.plus(dec(g._sum.amount)), ZERO);
   return categories
     .map((c) => {
       const t = { SCHOOL: ZERO, OWNER: ZERO, OTHER: ZERO };
@@ -77,7 +86,9 @@ export async function expensesByCategory(db: Db, scope: Scope) {
         t[b] = t[b].plus(dec(g._sum.amount));
       }
       const total = t.SCHOOL.plus(t.OWNER).plus(t.OTHER);
-      return { category: c.code, categoryLabel: c.label, schoolFunded: money(t.SCHOOL), ownerFunded: money(t.OWNER), otherFunded: money(t.OTHER), total: money(total) };
+      // v14: each category's share of all expenses in the period.
+      const share = grand.gt(0) ? total.div(grand).toFixed(4) : null;
+      return { category: c.code, categoryLabel: c.label, schoolFunded: money(t.SCHOOL), ownerFunded: money(t.OWNER), otherFunded: money(t.OTHER), total: money(total), share };
     })
     .filter((r) => c_active(r));
 }
@@ -208,17 +219,23 @@ dashboardRouter.get(
   '/',
   requirePermission('dashboard.view'),
   handle(async (req) => {
-    const termId = Number(req.query.termId);
-    if (!termId) throw badRequest('Choose an academic year and term');
-    const term = await prisma.academicTerm.findUnique({ where: { id: termId }, include: { academicYear: true } });
-    if (!term) throw badRequest('Unknown term');
-    const scope = { termId };
-    const [figures, byClass, expenses, yearTerms, receipts, pending] = await Promise.all([
+    // One term, or the whole year (v14 "All Terms").
+    const termId = Number(req.query.termId) || undefined;
+    const yearId = Number(req.query.academicYearId) || undefined;
+    if (!termId && !yearId) throw badRequest('Choose an academic year and term');
+    const term = termId ? await prisma.academicTerm.findUnique({ where: { id: termId }, include: { academicYear: true } }) : null;
+    if (termId && !term) throw badRequest('Unknown term');
+    const year = await prisma.academicYear.findUnique({ where: { id: term?.academicYearId ?? yearId } });
+    if (!year) throw badRequest('Unknown academic year');
+    const scope = termId ? { termId } : { academicYearId: year.id };
+    const inScope = (c: { termId: number }, yearTermIds: number[]) => (termId ? c.termId === termId : yearTermIds.includes(c.termId));
+    const yearTerms = await prisma.academicTerm.findMany({ where: { academicYearId: year.id }, include: { academicYear: true }, orderBy: { number: 'asc' } });
+    const yearTermIds = yearTerms.map((t) => t.id);
+    const [figures, byClass, expenses, receipts, pending] = await Promise.all([
       computeFigures(prisma, scope),
       outstandingByClass(prisma, scope),
       expensesByCategory(prisma, scope),
-      prisma.academicTerm.findMany({ where: { academicYearId: term.academicYearId }, include: { academicYear: true }, orderBy: { number: 'asc' } }),
-      prisma.receipt.findMany({ where: { reversedAt: null, lines: { some: { charge: { termId } } } }, include: { lines: { include: { charge: true } } } }),
+      prisma.receipt.findMany({ where: { reversedAt: null, lines: { some: { charge: { termId: termId ?? { in: yearTermIds } } } } }, include: { lines: { include: { charge: true } } } }),
       Promise.all([
         prisma.chargeDiscount.count({ where: { status: 'PENDING' } }),
         prisma.expense.count({ where: { status: 'PENDING' } }),
@@ -233,7 +250,7 @@ dashboardRouter.get(
       const d = new Date(r.paymentDate);
       const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - ((d.getUTCDay() + 6) % 7)));
       const key = isoDate(monday)!;
-      const amount = r.lines.filter((l) => l.charge.termId === termId).reduce((s, l) => s.plus(l.amount), ZERO);
+      const amount = r.lines.filter((l) => inScope(l.charge, yearTermIds)).reduce((s, l) => s.plus(l.amount), ZERO);
       weekly.set(key, (weekly.get(key) ?? ZERO).plus(amount));
     }
     const termsTrend = [];
@@ -242,7 +259,8 @@ dashboardRouter.get(
       termsTrend.push({ termLabel: termLabel(t), totalBilled: money(f.totalBilled), totalCollected: money(f.totalCollected), outstanding: money(f.outstanding) });
     }
     return {
-      term: { id: term.id, label: termLabel(term), status: term.status },
+      term: term ? { id: term.id, label: termLabel(term), status: term.status } : { id: null, label: `All terms ${year.year}`, status: null },
+      year: { id: year.id, year: year.year },
       figures: serializeFigures(figures),
       byClass,
       expensesByCategory: expenses,

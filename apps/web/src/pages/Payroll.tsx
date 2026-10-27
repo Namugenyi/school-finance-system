@@ -4,9 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useAuth, useLookups } from '../lib/auth';
 import { cleanAmount, formatDate, formatDateTime, formatMoney, todayIso } from '../lib/format';
-import { Button, Card, DateInput, DecisionButtons, Empty, ErrorBox, Loading, Modal, Money, MoneyInput, Notice, PageHeader, Select, StatusBadge, TableWrap, Tabs, TextInput, Narrow } from '../components/ui';
+import { Button, Card, DateInput, DecisionButtons, Empty, ErrorBox, Loading, Modal, Money, MoneyInput, Notice, PageHeader, Select, StatusBadge, TableWrap, Tabs, TextArea, TextInput, Narrow } from '../components/ui';
 
-interface Staff { id: number; staffCode: string; fullName: string; jobRole: string; department: string | null; employmentType: string; basicSalary: string; startDate: string; status: string; phone: string | null; nssfNo: string | null; tin: string | null; payThisYear?: PayTotals; payToDate?: PayTotals }
+interface Staff { id: number; staffCode: string; fullName: string; jobRole: string; department: string | null; employmentType: string; basicSalary: string; startDate: string; status: string; phone: string | null; nssfNo: string | null; tin: string | null; payTo: string | null; notes: string | null; estimate?: { nssfEmployee: string; nssfEmployer: string; paye: string; net: string } | null; payThisYear?: PayTotals; payToDate?: PayTotals }
 interface PayTotals { months: number; basic: string; nssfEmployee: string; paye: string; otherDeductions: string; net: string; nssfEmployer: string }
 interface RateSet { id: number; effectiveFrom: string; nssfEmployeeRate: string; nssfEmployerRate: string; notes: string | null; validated: boolean; validatedBy: string | null; bands: Array<{ lowerBound: string; upperBound: string | null; rate: string }> }
 interface RunSummary { id: number; year: number; month: number; label: string; status: string; termLabel: string; totalBasic: string; totalNet: string; expenseAmount: string }
@@ -18,6 +18,8 @@ interface Run {
   preparedById: number; preparedBy: string | null; preparedAt: string; submittedAt: string | null; approvedBy: string | null; approvedAt: string | null; decisionNote: string | null;
   expense: { id: number; expenseNo: string; amount: string } | null; entries: Entry[];
 }
+
+const STAFF_STATUS = [{ value: 'ACTIVE', label: 'Active' }, { value: 'ON_LEAVE', label: 'On leave' }, { value: 'RESIGNED', label: 'Resigned' }, { value: 'TERMINATED', label: 'Terminated' }];
 
 const pct = (r: string) => `${(Number(r) * 100).toFixed(2).replace(/\.00$/, '')}%`;
 
@@ -95,7 +97,7 @@ function Runs() {
   );
 }
 
-const blankStaff = { fullName: '', jobRole: '', department: '', employmentType: '', basicSalary: '', startDate: todayIso(), status: 'ACTIVE', phone: '', nssfNo: '', tin: '' };
+const blankStaff = { fullName: '', jobRole: '', department: '', employmentType: '', basicSalary: '', startDate: todayIso(), status: 'ACTIVE', phone: '', nssfNo: '', tin: '', payTo: '', notes: '' };
 
 function StaffList() {
   const { can } = useAuth();
@@ -112,7 +114,7 @@ function StaffList() {
     onSuccess: () => { setEditing(null); void qc.invalidateQueries({ queryKey: ['staff'] }); },
   });
   const open = (s: Staff | 'new') => {
-    setF(s === 'new' ? blankStaff : { fullName: s.fullName, jobRole: s.jobRole, department: s.department ?? '', employmentType: s.employmentType, basicSalary: s.basicSalary, startDate: s.startDate, status: s.status, phone: s.phone ?? '', nssfNo: s.nssfNo ?? '', tin: s.tin ?? '' });
+    setF(s === 'new' ? blankStaff : { fullName: s.fullName, jobRole: s.jobRole, department: s.department ?? '', employmentType: s.employmentType, basicSalary: s.basicSalary, startDate: s.startDate, status: s.status, phone: s.phone ?? '', nssfNo: s.nssfNo ?? '', tin: s.tin ?? '', payTo: s.payTo ?? '', notes: s.notes ?? '' });
     setEditing(s);
   };
   return (
@@ -120,15 +122,24 @@ function StaffList() {
       {q.isLoading ? <Loading /> : q.data?.length === 0 ? <div className="p-4"><Empty title="No staff yet" /></div> : (
         <TableWrap>
           <table className="table">
-            <thead><tr><th>Staff ID</th><th>Name</th><th>Role</th><th>Department</th><th>Type</th><th>Started</th><th>Status</th><th className="num">Basic salary</th><th className="num">Net paid this year</th><th className="num">Net paid to date</th>{can('payroll.manage') && <th />}</tr></thead>
+            <thead><tr><th>Staff member</th><th>Status</th><th className="num">Basic salary</th><th className="num">NSSF 5%</th><th className="num">Est. PAYE</th><th className="num">Est. net pay</th><th className="num">Net paid this year<span className="block font-normal normal-case">to date</span></th>{can('payroll.manage') && <th><span className="sr-only">Actions</span></th>}</tr></thead>
             <tbody>
               {q.data?.map((s) => (
                 <tr key={s.id} className={s.status === 'ACTIVE' ? '' : 'text-slate-400'}>
-                  <td className="font-mono text-xs">{s.staffCode}</td><td><Link to={`/payroll/staff/${s.id}`} className="link">{s.fullName}</Link></td><td>{s.jobRole}</td><td>{s.department}</td>
-                  <td>{label('EMPLOYMENT_TYPE', s.employmentType)}</td><td>{formatDate(s.startDate)}</td><td><StatusBadge status={s.status} /></td>
+                  <td className="min-w-[13rem] whitespace-normal">
+                    <Link to={`/payroll/staff/${s.id}`} className="link">{s.fullName}</Link>
+                    <span className="block text-xs text-slate-500"><span className="font-mono">{s.staffCode}</span> · {s.jobRole}{s.department ? ` · ${s.department}` : ''} · {label('EMPLOYMENT_TYPE', s.employmentType)} · since {formatDate(s.startDate)}</span>
+                    {s.payTo && <span className="block text-xs text-slate-500">Paid to {s.payTo}</span>}
+                  </td>
+                  <td><StatusBadge status={s.status} /></td>
                   <td className="num"><Money value={s.basicSalary} /></td>
-                  <td className="num"><Money value={s.payThisYear?.net ?? '0'} /></td>
-                  <td className="num"><Money value={s.payToDate?.net ?? '0'} /></td>
+                  <td className="num">{s.estimate ? <Money value={s.estimate.nssfEmployee} /> : '—'}</td>
+                  <td className="num">{s.estimate ? <Money value={s.estimate.paye} /> : '—'}</td>
+                  <td className="num">{s.estimate ? <Money value={s.estimate.net} /> : '—'}</td>
+                  <td className="num">
+                    <Money value={s.payThisYear?.net ?? '0'} />
+                    <span className="block text-xs text-slate-500"><Money value={s.payToDate?.net ?? '0'} /></span>
+                  </td>
                   {can('payroll.manage') && <td><Button variant="ghost" onClick={() => open(s)}>Edit</Button></td>}
                 </tr>
               ))}
@@ -136,7 +147,7 @@ function StaffList() {
           </table>
         </TableWrap>
       )}
-      <p className="border-t border-slate-200 px-4 py-2 text-xs text-slate-600">Paid figures add up approved payroll runs only. Choose a name to see that person’s pay month by month.</p>
+      <p className="border-t border-slate-200 px-4 py-2 text-xs text-slate-600">Estimated NSSF (staff share), PAYE and net pay use this month’s rates on the basic salary, before any other deductions. Paid figures add up approved payroll runs only. Choose a name to see that person’s pay month by month.</p>
       <Modal open={!!editing} wide title={editing === 'new' ? 'Add staff member' : 'Edit staff member'} onClose={() => setEditing(null)}
         footer={<><Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button><Button busy={save.isPending} onClick={() => save.mutate()}>Save</Button></>}>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -146,10 +157,12 @@ function StaffList() {
           <Select label="Employment type" value={f.employmentType} onChange={(e) => setF({ ...f, employmentType: e.target.value })} placeholder="Choose…" options={options('EMPLOYMENT_TYPE')} required />
           <MoneyInput label="Basic monthly salary (UGX)" value={f.basicSalary} onChange={(v) => setF({ ...f, basicSalary: v })} required />
           <DateInput label="Start date" value={f.startDate} onChange={(v) => setF({ ...f, startDate: v })} required />
-          <Select label="Status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} options={[{ value: 'ACTIVE', label: 'Active' }, { value: 'INACTIVE', label: 'Inactive' }]} />
+          <Select label="Status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} options={STAFF_STATUS} hint="Only Active staff are included in a payroll run." />
           <TextInput label="Phone" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
           <TextInput label="NSSF number" value={f.nssfNo} onChange={(e) => setF({ ...f, nssfNo: e.target.value })} />
           <TextInput label="TIN" value={f.tin} onChange={(e) => setF({ ...f, tin: e.target.value })} />
+          <TextInput label="Bank or mobile money" value={f.payTo} onChange={(e) => setF({ ...f, payTo: e.target.value })} hint="Where salary is paid, e.g. Stanbic 0140… or MTN 0772…" />
+          <TextArea label="Notes" value={f.notes} onChange={(v) => setF({ ...f, notes: v })} rows={2} maxLength={500} className="sm:col-span-2" />
         </div>
         <ErrorBox error={save.error} />
       </Modal>
@@ -374,7 +387,7 @@ export function StaffEarningsPage() {
   return (
     <div>
       <PageHeader title={`Pay record: ${s.fullName}`} crumbs={[{ label: 'Payroll', to: '/payroll' }, { label: s.staffCode }]}
-        subtitle={`${s.jobRole}${s.department ? ` · ${s.department}` : ''} · started ${formatDate(s.startDate)} · basic salary UGX ${formatMoney(s.basicSalary)}`}
+        subtitle={`${s.jobRole}${s.department ? ` · ${s.department}` : ''} · started ${formatDate(s.startDate)} · basic salary UGX ${formatMoney(s.basicSalary)}${s.payTo ? ` · paid to ${s.payTo}` : ''}`}
         actions={<Button variant="secondary" onClick={() => window.print()}>Print</Button>} />
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Select label="Year" value={String(q.data.year)} onChange={(e) => setYear(e.target.value)} options={yearOptions} />
