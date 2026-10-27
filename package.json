@@ -1,0 +1,20 @@
+{
+  "name": "stja-finance",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Supreme Tower Junior Academy finance and accounts management system",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/api & npm run dev --workspace apps/web",
+    "build": "npm run build --workspace apps/api && npm run build --workspace apps/web",
+    "typecheck": "npm run typecheck --workspace apps/api && npm run typecheck --workspace apps/web",
+    "test": "npm run test --workspace apps/api && npm run test --workspace apps/web",
+    "e2e": "npm run e2e --workspace apps/web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
