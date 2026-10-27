@@ -55,9 +55,9 @@ describe('Reference data (FR-100, FR-404, FR-603, FR-705, FR-702, FR-801, FR-204
     const l = (await bursar.get('/api/setup/lookups')).body;
     expect(labels(l.lists.CONTRIBUTION_TYPE)).toEqual(['Cash Contribution', 'Expense Paid Directly', 'Loan']);
   });
-  it('FR-204: pupil statuses are Active, Withdrawn, Completed, Transferred, Alumni', async () => {
+  it('FR-204 (as changed by the school, 27/10/2026): pupil statuses are Active and Alumni', async () => {
     const l = (await bursar.get('/api/setup/lookups')).body;
-    expect(labels(l.lists.PUPIL_STATUS)).toEqual(['Active', 'Withdrawn', 'Completed', 'Transferred', 'Alumni']);
+    expect(labels(l.lists.PUPIL_STATUS)).toEqual(['Active', 'Alumni']);
   });
   it('FR-403 / FR-402: charge frequency and Mandatory/Optional lists', async () => {
     const l = (await bursar.get('/api/setup/lookups')).body;
@@ -109,12 +109,12 @@ describe('Pupils and history (FR-200, FR-300)', () => {
     expect(p).toMatchObject({ guardianName: 'Parent of Contact Kid', phonePrimary: '0772123456', phoneAlt: '0701234567', address: 'Kasangati' });
     expect(p).toMatchObject({ emergencyName: 'Aunt Grace', emergencyRelationship: 'AUNT_UNCLE', emergencyPhone: '0782000000' });
   });
-  it('FR-207 / BR-16: Withdrawn, Completed, Alumni and Transferred pupils are not billed', async () => {
+  it('FR-207 / BR-16: Alumni pupils are not billed, whatever their reason for leaving', async () => {
     await setFees(bursar, w.terms.t1, w.classes.p1, [{ feeItemId: w.items.SCHOOL_FEES, amount: '1000', mandatory: true }]);
     await createPupil(bursar, w, 'Stays');
-    for (const [s, r] of [['WITHDRAWN', 'WITHDRAWN_BY_PARENT'], ['COMPLETED', 'COMPLETED'], ['ALUMNI', 'COMPLETED'], ['TRANSFERRED', 'TRANSFERRED']]) {
-      const p = await createPupil(bursar, w, `Left ${s}`);
-      const res = await bursar.post(`/api/pupils/${p.id}/status`, { status: s, effectiveDate: '2026-01-25', leavingReason: r, confirm: true });
+    for (const r of ['WITHDRAWN_BY_PARENT', 'COMPLETED', 'TRANSFERRED']) {
+      const p = await createPupil(bursar, w, `Left ${r}`);
+      const res = await bursar.post(`/api/pupils/${p.id}/status`, { status: 'ALUMNI', effectiveDate: '2026-01-25', leavingReason: r, confirm: true });
       expect(res.status, JSON.stringify(res.body)).toBe(200);
     }
     const prev = (await bursar.post('/api/billing/preview', { termId: w.terms.t1, classId: w.classes.p1 })).body;
@@ -123,7 +123,7 @@ describe('Pupils and history (FR-200, FR-300)', () => {
   it('FR-301 to FR-303 / CTL-10: promotion adds dated history and keeps the old placement', async () => {
     const a = await createPupil(bursar, w, 'Promoted');
     expect((await bursar.post(`/api/pupils/${a.id}/class`, { classId: w.classes.p2, effectiveDate: '2026-05-25', eventType: 'PROMOTED' })).status).toBe(200);
-    await bursar.post(`/api/pupils/${a.id}/status`, { status: 'WITHDRAWN', effectiveDate: '2026-06-01', leavingReason: 'WITHDRAWN_BY_PARENT', confirm: true });
+    await bursar.post(`/api/pupils/${a.id}/status`, { status: 'ALUMNI', effectiveDate: '2026-06-01', leavingReason: 'WITHDRAWN_BY_PARENT', confirm: true });
     const p = (await bursar.get(`/api/pupils/${a.id}`)).body;
     const h = p.history as Array<Record<string, any>>;
     expect(h.length).toBeGreaterThanOrEqual(3);

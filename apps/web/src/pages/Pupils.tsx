@@ -48,7 +48,7 @@ export function PupilsPage() {
               <thead><tr><th>Pupil ID</th><th>Name</th><th>Class</th><th>Status</th><th>Parent / guardian</th><th>Phone</th><th>Joined</th></tr></thead>
               <tbody>
                 {q.data?.items.map((p) => (
-                  <tr key={p.id} className={p.status === 'ACTIVE' ? '' : p.status === 'WITHDRAWN' ? 'bg-red-50/40' : ''}>
+                  <tr key={p.id} className={p.status === 'ACTIVE' ? '' : 'bg-slate-50/60'}>
                     <td className="font-mono text-xs">{p.pupilCode}</td>
                     <td><Link to={`/pupils/${p.id}`} className="link">{p.fullName}</Link></td>
                     <td>{p.className} <span className="text-xs text-slate-500">{p.sectionName}</span></td>
@@ -279,7 +279,7 @@ export function PupilDetailPage() {
   if (q.isLoading) return <Loading />;
   if (q.error || !q.data) return <ErrorBox error={q.error} />;
   const p = q.data;
-  const leaving = ['WITHDRAWN', 'COMPLETED', 'TRANSFERRED', 'ALUMNI'].includes(statusForm.status);
+  const leaving = statusForm.status === 'ALUMNI';
 
   return (
     <div>

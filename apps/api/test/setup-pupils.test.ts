@@ -119,15 +119,17 @@ describe('pupil register (FR-201 to FR-207)', () => {
     expect(ok.body.phonePrimary).toBe('+256772123456');
   });
 
-  it('only allows the five FRS statuses and asks for confirmation (FR-204, WR-29)', async () => {
+  it('only allows Active and Alumni and asks for confirmation (FR-204, WR-29)', async () => {
     const p = await createPupil(bursar, w, 'Status Pupil');
-    expect((await bursar.post(`/api/pupils/${p.id}/status`, { status: 'SUSPENDED', effectiveDate: '2026-03-01', confirm: true })).status).toBe(400);
-    expect((await bursar.post(`/api/pupils/${p.id}/status`, { status: 'WITHDRAWN', effectiveDate: '2026-03-01', leavingReason: 'WITHDRAWN_BY_PARENT' })).status).toBe(400);
-    expect((await bursar.post(`/api/pupils/${p.id}/status`, { status: 'WITHDRAWN', effectiveDate: '2026-03-01', confirm: true })).status).toBe(400); // needs a reason
-    const ok = await bursar.post(`/api/pupils/${p.id}/status`, { status: 'WITHDRAWN', effectiveDate: '2026-03-01', leavingReason: 'WITHDRAWN_BY_PARENT', confirm: true });
+    for (const status of ['SUSPENDED', 'WITHDRAWN', 'COMPLETED', 'TRANSFERRED']) {
+      expect((await bursar.post(`/api/pupils/${p.id}/status`, { status, effectiveDate: '2026-03-01', leavingReason: 'TRANSFERRED', confirm: true })).status).toBe(400);
+    }
+    expect((await bursar.post(`/api/pupils/${p.id}/status`, { status: 'ALUMNI', effectiveDate: '2026-03-01', leavingReason: 'WITHDRAWN_BY_PARENT' })).status).toBe(400);
+    expect((await bursar.post(`/api/pupils/${p.id}/status`, { status: 'ALUMNI', effectiveDate: '2026-03-01', confirm: true })).status).toBe(400); // needs a reason
+    const ok = await bursar.post(`/api/pupils/${p.id}/status`, { status: 'ALUMNI', effectiveDate: '2026-03-01', leavingReason: 'WITHDRAWN_BY_PARENT', confirm: true });
     expect(ok.status).toBe(200);
     const detail = (await bursar.get(`/api/pupils/${p.id}`)).body;
-    expect(detail.status).toBe('WITHDRAWN');
+    expect(detail.status).toBe('ALUMNI');
     expect(detail.dateLeft).toBe('2026-03-01');
   });
 });
@@ -179,7 +181,7 @@ describe('"Other" asks for the details that are not on the list', () => {
 
   it('needs the typed reason when a pupil leaves for an "Other" reason', async () => {
     const p = await createPupil(bursar, w, 'Leaves Other', w.classes.p1);
-    const status = { status: 'WITHDRAWN', effectiveDate: '2026-03-01', leavingReason: 'OTHER', confirm: true };
+    const status = { status: 'ALUMNI', effectiveDate: '2026-03-01', leavingReason: 'OTHER', confirm: true };
     expect((await bursar.post(`/api/pupils/${p.id}/status`, status)).status).toBe(400);
     expect((await bursar.post(`/api/pupils/${p.id}/status`, { ...status, leavingReasonOther: 'Family moved abroad' })).status).toBe(200);
     const got = (await bursar.get(`/api/pupils/${p.id}`)).body;

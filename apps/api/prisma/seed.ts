@@ -76,14 +76,13 @@ async function main() {
   ];
   const lookups = await admin.get('/api/setup/lookups');
   const section = (code: string) => lookups.sections.find((s: { code: string }) => s.code === code).id;
-  const classes: Array<{ id: number; name: string; kg: boolean }> = [];
-  for (const [i, name] of ['Baby Class', 'Middle Class', 'Top Class'].entries()) classes.push({ ...(await admin.post('/api/setup/classes', { name, sectionId: section('KG'), sortOrder: i + 1 })), kg: true });
-  for (let i = 1; i <= 7; i++) classes.push({ ...(await admin.post('/api/setup/classes', { name: `P${i}`, sectionId: section('PRIMARY'), sortOrder: i })), kg: false });
+  const classes: Array<{ id: number; name: string }> = [];
+  for (const [i, name] of ['Baby Class', 'Middle Class', 'Top Class'].entries()) classes.push(await admin.post('/api/setup/classes', { name, sectionId: section('KG'), sortOrder: i + 1 }));
   const item = (code: string) => lookups.feeItems.find((f: { code: string }) => f.code === code).id;
 
   // Fee structure for term 1, copied to terms 2 and 3.
-  for (const c of classes) {
-    const tuition = c.kg ? 350000 : 450000 + 25000 * (Number(c.name.slice(1)) || 0);
+  for (const [i, c] of classes.entries()) {
+    const tuition = 300000 + 50000 * i;
     await bursar.put('/api/fees', {
       termId: terms[0].id,
       classId: c.id,
@@ -107,7 +106,7 @@ async function main() {
     const cls = classes[i % classes.length];
     const name = `${pick(FIRST)} ${pick(LAST)}`;
     const p = await bursar.post('/api/pupils', {
-      fullName: name, sex: rand() < 0.5 ? 'FEMALE' : 'MALE', dateOfBirth: `${cls.kg ? 2021 : 2016 - (Number(cls.name.slice(1)) || 0) + 1}-0${1 + Math.floor(rand() * 9)}-1${Math.floor(rand() * 9)}`,
+      fullName: name, sex: rand() < 0.5 ? 'FEMALE' : 'MALE', dateOfBirth: `2021-0${1 + Math.floor(rand() * 9)}-1${Math.floor(rand() * 9)}`,
       dateJoined: `2026-01-${String(10 + Math.floor(rand() * 18)).padStart(2, '0')}`, classId: cls.id,
       guardianName: `${pick(FIRST)} ${name.split(' ')[1]}`, guardianRelationship: ['MOTHER', 'FATHER', 'MOTHER', 'GUARDIAN', 'GRANDPARENT'][i % 5], phonePrimary: `07${String(70000000 + Math.floor(rand() * 9999999)).slice(0, 8)}`,
       phoneAlt: rand() < 0.4 ? `07${String(50000000 + Math.floor(rand() * 9999999)).slice(0, 8)}` : '', address: `${pick(['Kasangati', 'Gayaza', 'Kiteezi', 'Matugga', 'Wampewo'])}, Wakiso`,

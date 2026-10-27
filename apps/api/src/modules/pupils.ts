@@ -13,7 +13,7 @@ import { assertRefCode, getSettings, otherText } from './setup';
 
 export const router = Router();
 
-const LEAVING_STATUSES = ['WITHDRAWN', 'COMPLETED', 'TRANSFERRED', 'ALUMNI'];
+const LEAVING_STATUSES = ['ALUMNI'];
 
 /** A-12: Ugandan phone numbers, +256 or 0 followed by 9 digits. Spaces and dashes are ignored. */
 const phone = z

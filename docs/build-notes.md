@@ -29,6 +29,7 @@ Other choices made where the FRS left a gap:
 - Approving a term close re-checks the live figures. If anything changed since the snapshot was prepared, approval is refused.
 - Repeating a billing run, a payment or a carry-forward (a double click or a dropped connection) cannot create duplicates.
 - Owner loan repayments are not tracked yet; the report shows loans received to date.
+- Pupil status is Active or Alumni (school decision, 27/10/2026). The FRS's Withdrawn, Completed and Transferred all became Alumni, and the reason for leaving (Transferred, Completed, Withdrawn by parent, Other) records why. The demo data has the three KG classes only.
 
 ## Before go-live
 

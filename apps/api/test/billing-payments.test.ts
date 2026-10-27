@@ -33,7 +33,7 @@ describe('term billing (FR-1001 to FR-1006, WR-07, D-04)', () => {
     await createPupil(bursar, w, 'Active One');
     await createPupil(bursar, w, 'Active Two');
     const left = await createPupil(bursar, w, 'Left Pupil');
-    await bursar.post(`/api/pupils/${left.id}/status`, { status: 'TRANSFERRED', effectiveDate: '2026-01-25', leavingReason: 'TRANSFERRED', confirm: true });
+    await bursar.post(`/api/pupils/${left.id}/status`, { status: 'ALUMNI', effectiveDate: '2026-01-25', leavingReason: 'TRANSFERRED', confirm: true });
     const res = await bursar.post('/api/billing/preview', { termId: w.terms.t1, classId: w.classes.p1 });
     expect(res.body.counts).toMatchObject({ feeItems: 4, activePupils: 2, proposedRows: 8 });
     expect(res.body.totalAmount).toBe('1320000.00');

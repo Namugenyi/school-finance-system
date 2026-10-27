@@ -18,12 +18,9 @@ export const REFERENCE_LISTS: RefSeed[] = [
     values: [{ code: 'MALE', label: 'Male' }, { code: 'FEMALE', label: 'Female' }],
   },
   {
-    code: 'PUPIL_STATUS', name: 'Pupil Status', description: 'Enrolment status (FR-204). Only Active pupils are billed.', locked: true,
+    code: 'PUPIL_STATUS', name: 'Pupil Status', description: 'Enrolment status (FR-204, narrowed by the school to Active and Alumni). Only Active pupils are billed.', locked: true,
     values: [
       { code: 'ACTIVE', label: 'Active', system: true },
-      { code: 'WITHDRAWN', label: 'Withdrawn', system: true },
-      { code: 'COMPLETED', label: 'Completed', system: true },
-      { code: 'TRANSFERRED', label: 'Transferred', system: true },
       { code: 'ALUMNI', label: 'Alumni', system: true },
     ],
   },
