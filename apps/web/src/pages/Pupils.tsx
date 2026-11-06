@@ -13,7 +13,7 @@ interface Pupil {
   guardianRelationship: string | null; guardianRelationshipOther: string | null; emergencyName?: string | null; emergencyRelationship?: string | null; emergencyRelationshipOther?: string | null; emergencyPhone?: string | null; notes: string | null; dateLeft: string | null; leavingReason: string | null; leavingReasonOther: string | null; contactsHidden?: boolean;
 }
 interface PupilDetail extends Pupil {
-  totals: { netDue: string; totalPaid: string; balance: string };
+  totals: { netDue: string; totalPaid: string; balance: string; credit: string };
   history: Array<{ id: number; eventType: string; effectiveDate: string; termLabel: string | null; className: string; sectionName: string; status: string; leavingReason: string | null; leavingReasonOther: string | null; note: string | null; createdAt: string; correctedAt: string | null }>;
 }
 
@@ -337,7 +337,8 @@ export function PupilDetailPage() {
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between"><dt>Net billed</dt><dd><Money value={p.totals.netDue} /></dd></div>
             <div className="flex justify-between"><dt>Paid</dt><dd><Money value={p.totals.totalPaid} /></dd></div>
-            <div className="flex justify-between border-t border-slate-200 pt-2 font-semibold"><dt>Balance</dt><dd className={Number(p.totals.balance) > 0 ? 'text-red-700' : 'text-emerald-700'}><Money value={p.totals.balance} credit /></dd></div>
+            <div className="flex justify-between border-t border-slate-200 pt-2 font-semibold"><dt>Outstanding</dt><dd className={Number(p.totals.balance) > 0 ? 'text-red-700' : 'text-emerald-700'}><Money value={p.totals.balance} /></dd></div>
+            {Number(p.totals.credit) > 0 && <div className="flex justify-between text-emerald-700"><dt>Credit on overpaid items</dt><dd><Money value={p.totals.credit} /></dd></div>}
           </dl>
         </Card>
       </div>

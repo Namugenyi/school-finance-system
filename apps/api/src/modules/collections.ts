@@ -32,12 +32,14 @@ router.get(
       where: { ...balanceWhere(scope), classId },
       select: { pupilId: true, netDue: true, totalPaid: true, balance: true, isArrears: true },
     });
-    const byPupil = new Map<number, { billed: ReturnType<typeof dec>; paid: ReturnType<typeof dec>; outstanding: ReturnType<typeof dec>; unpaidItems: number }>();
+    const byPupil = new Map<number, { billed: ReturnType<typeof dec>; paid: ReturnType<typeof dec>; outstanding: ReturnType<typeof dec>; credit: ReturnType<typeof dec>; unpaidItems: number }>();
     for (const b of balances) {
-      const row = byPupil.get(b.pupilId) ?? { billed: dec(0), paid: dec(0), outstanding: dec(0), unpaidItems: 0 };
+      const row = byPupil.get(b.pupilId) ?? { billed: dec(0), paid: dec(0), outstanding: dec(0), credit: dec(0), unpaidItems: 0 };
       if (!b.isArrears) row.billed = row.billed.plus(b.netDue);
       row.paid = row.paid.plus(b.totalPaid);
-      row.outstanding = row.outstanding.plus(b.balance);
+      // Same rule as the dashboard (figures.ts): outstanding counts only amounts still owed; an overpaid item is a credit, shown on its own.
+      if (dec(b.balance).gt(0)) row.outstanding = row.outstanding.plus(b.balance);
+      else row.credit = row.credit.minus(b.balance);
       // A-14: unpaid items = charges with a balance above zero (Unpaid + Partial).
       if (dec(b.balance).gt(0)) row.unpaidItems += 1;
       byPupil.set(b.pupilId, row);
@@ -64,6 +66,7 @@ router.get(
         totalBilled: money(t.billed),
         totalPaid: money(t.paid),
         outstanding: money(t.outstanding),
+        credit: money(t.credit),
         unpaidItems: t.unpaidItems,
         status,
         statusLabel: STATUS_LABEL[status],
@@ -77,13 +80,14 @@ router.get(
       totalBilled: money(rows.reduce((s, r) => s.plus(r.totalBilled), dec(0))),
       totalPaid: money(rows.reduce((s, r) => s.plus(r.totalPaid), dec(0))),
       outstanding: money(rows.reduce((s, r) => s.plus(r.outstanding), dec(0))),
+      credit: money(rows.reduce((s, r) => s.plus(r.credit), dec(0))),
     };
     if (wantsCsv(q)) {
       sendCsv(
         res,
         'arrears.csv',
-        ['#', 'Pupil ID', 'Pupil', 'Section', 'Class', 'Pupil status', 'Parent/Guardian', 'Phone', 'Alt phone', 'Total billed', 'Total paid', 'Outstanding', 'Unpaid items', 'Payment status'],
-        rows.map((r, i) => [i + 1, r.pupilCode, r.pupilName, r.sectionName, r.className, statusLabels.find((v) => v.code === r.pupilStatus)?.label ?? r.pupilStatus, r.guardianName, r.phonePrimary, r.phoneAlt, r.totalBilled, r.totalPaid, r.outstanding, r.unpaidItems, r.statusLabel]),
+        ['#', 'Pupil ID', 'Pupil', 'Section', 'Class', 'Pupil status', 'Parent/Guardian', 'Phone', 'Alt phone', 'Total billed', 'Total paid', 'Outstanding', 'Credit', 'Unpaid items', 'Payment status'],
+        rows.map((r, i) => [i + 1, r.pupilCode, r.pupilName, r.sectionName, r.className, statusLabels.find((v) => v.code === r.pupilStatus)?.label ?? r.pupilStatus, r.guardianName, r.phonePrimary, r.phoneAlt, r.totalBilled, r.totalPaid, r.outstanding, r.credit, r.unpaidItems, r.statusLabel]),
       );
       return;
     }
@@ -111,7 +115,8 @@ router.get(
     });
     const billed = charges.filter((c) => !c.isArrears).reduce((s, c) => s.plus(c.netDue), dec(0));
     const paid = charges.reduce((s, c) => s.plus(c.totalPaid), dec(0));
-    const outstanding = charges.reduce((s, c) => s.plus(c.balance), dec(0));
+    const outstanding = charges.reduce((s, c) => (dec(c.balance).gt(0) ? s.plus(c.balance) : s), dec(0));
+    const credit = charges.reduce((s, c) => (dec(c.balance).lt(0) ? s.minus(c.balance) : s), dec(0));
     const status = pupilOverallStatus(outstanding, paid);
     const showContacts = hasPermission(req.user, 'pupils.contacts');
     return {
@@ -130,7 +135,7 @@ router.get(
           method: r.method, reference: r.reference, reversed: r.reversedAt !== null,
         })),
       ),
-      totals: { totalBilled: money(billed), totalPaid: money(paid), outstanding: money(outstanding), status, statusLabel: STATUS_LABEL[status] },
+      totals: { totalBilled: money(billed), totalPaid: money(paid), outstanding: money(outstanding), credit: money(credit), status, statusLabel: STATUS_LABEL[status] },
       generatedAt: new Date().toISOString(),
     };
   }),

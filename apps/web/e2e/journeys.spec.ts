@@ -156,7 +156,10 @@ test('an expense counts only after someone else approves it', async ({ browser }
   const form = bursar.getByRole('dialog');
   await form.getByLabel('Category').selectOption({ label: 'Electricity' });
   await form.getByLabel('Amount (UGX)').fill('120000');
-  await form.getByLabel('Description').fill('UMEME prepaid units');
+  // Typed key by key, as a person would: the cursor must stay in the field (app check, 27/10/2026).
+  await form.getByLabel('Description').pressSequentially('UMEME prepaid units');
+  await expect(form.getByLabel('Description')).toHaveValue('UMEME prepaid units');
+  await expect(form.getByLabel('Description')).toBeFocused();
   await form.getByLabel('Paid by').selectOption({ label: 'Cash' });
   await form.getByRole('button', { name: 'Save for approval' }).click();
   await expect(bursar.getByText(/Saved as EXP-\d+, waiting for approval/)).toBeVisible();

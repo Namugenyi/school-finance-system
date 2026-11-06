@@ -196,6 +196,7 @@ router.post(
     const charge = await prisma.charge.findUnique({ where: { id } });
     if (!charge) throw notFound('Charge');
     if (charge.voidedAt) throw badRequest('This charge is already void');
+    if (charge.sourceChargeId) throw badRequest('An Arrears B/F charge cannot be voided: the pupil still owes this money from an earlier term. If the debt is wrong, correct the original charge or request a discount on it.');
     const bal = await prisma.chargeBalance.findUniqueOrThrow({ where: { chargeId: id } });
     const anyPayment = await prisma.paymentLine.count({ where: { chargeId: id, receipt: { reversedAt: null } } });
     if (anyPayment > 0) throw badRequest('This charge has payments. Reverse the payments first.');

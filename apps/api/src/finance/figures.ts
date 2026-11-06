@@ -122,6 +122,18 @@ export function serializeFigures(f: Figures) {
 }
 
 /** Per-pupil totals used by the arrears list (FR-1301) and statements (FR-1405). */
+/**
+ * What a pupil owes and any credit they hold, on the same rule as computeFigures: outstanding is the
+ * sum of balances above zero, and an overpaid item is a credit, never netted against another debt.
+ */
+export async function pupilOwed(db: Db, pupilId: number) {
+  const [owed, credit] = await Promise.all([
+    db.chargeBalance.aggregate({ where: { pupilId, voided: false, balance: { gt: 0 } }, _sum: { balance: true } }),
+    db.chargeBalance.aggregate({ where: { pupilId, voided: false, balance: { lt: 0 } }, _sum: { balance: true } }),
+  ]);
+  return { outstanding: dec(owed._sum.balance), credit: dec(credit._sum.balance).neg() };
+}
+
 export function pupilOverallStatus(outstanding: Decimal, paid: Decimal): 'PAID_IN_FULL' | 'PARTIAL' | 'UNPAID' {
   if (outstanding.lte(0)) return 'PAID_IN_FULL';
   if (paid.gt(0)) return 'PARTIAL';

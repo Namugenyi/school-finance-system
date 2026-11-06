@@ -584,7 +584,8 @@ describe('Edge cases around the approved decisions (D-01, D-04, D-05)', () => {
     await pay(bursar, p.id, [{ chargeId: sf.id, amount: '120000' }], { acknowledgeOverpayment: true });
     const st = (await bursar.get(`/api/collections/statements/${p.id}`)).body;
     expect(st.totals.statusLabel).toBe('Paid in Full');
-    expect(st.totals.outstanding).toBe('-20000.00');
+    // FR-507: the overpayment is a credit, shown on its own rather than as negative outstanding (same rule as the dashboard).
+    expect(st.totals).toMatchObject({ outstanding: '0.00', credit: '20000.00' });
     const list = (await bursar.get('/api/collections/arrears')).body.rows;
     expect(list).toHaveLength(0);
   });

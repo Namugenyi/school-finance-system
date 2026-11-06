@@ -8,7 +8,7 @@ import { Button, Card, Dt, Empty, ErrorBox, Loading, Money, PageHeader, Select, 
 import { TermSelect, scopeParams } from '../components/TermSelect';
 import type { Charge, Paged } from '../lib/types';
 
-interface ArrearsRow { pupilId: number; pupilCode: string; pupilName: string; sectionName: string; className: string; pupilStatus: string; guardianName: string | null; phonePrimary: string | null; phoneAlt: string | null; totalBilled: string; totalPaid: string; outstanding: string; unpaidItems: number; status: string; statusLabel: string }
+interface ArrearsRow { pupilId: number; pupilCode: string; pupilName: string; sectionName: string; className: string; pupilStatus: string; guardianName: string | null; phonePrimary: string | null; phoneAlt: string | null; totalBilled: string; totalPaid: string; outstanding: string; credit: string; unpaidItems: number; status: string; statusLabel: string }
 
 export function ArrearsPage() {
   const { lookups } = useLookups();
@@ -29,7 +29,7 @@ export function ArrearsPage() {
   const setOnlyOutstanding = (v: string) => setParam('show', v === 'false' ? 'all' : '');
   const setMinBalance = (v: string) => { setMinBalanceText(v); setParam('min', v); };
   const params = { ...scopeParams(scope), classId, minBalance: cleanAmount(minBalance), onlyOutstanding };
-  const q = useQuery({ queryKey: ['arrears', params], queryFn: () => api.get<{ rows: ArrearsRow[]; totals: { pupils: number; totalBilled: string; totalPaid: string; outstanding: string }; contactsHidden: boolean }>(`/collections/arrears${qs(params)}`) });
+  const q = useQuery({ queryKey: ['arrears', params], queryFn: () => api.get<{ rows: ArrearsRow[]; totals: { pupils: number; totalBilled: string; totalPaid: string; outstanding: string; credit: string }; contactsHidden: boolean }>(`/collections/arrears${qs(params)}`) });
   const className = classId ? lookups?.classes.find((c) => String(c.id) === classId)?.name : null;
   const scopeLabel = scope.startsWith('t:') ? lookups?.terms.find((t) => `t:${t.id}` === scope)?.label : scope.startsWith('y:') ? `Year ${lookups?.years.find((y) => `y:${y.id}` === scope)?.year}` : 'All terms';
   return (
@@ -51,7 +51,7 @@ export function ArrearsPage() {
           <Stat label="Pupils" value={q.data.totals.pupils} />
           <Stat label="Billed (UGX)" value={<Money value={q.data.totals.totalBilled} />} />
           <Stat label="Paid (UGX)" value={<Money value={q.data.totals.totalPaid} />} />
-          <Stat label="Outstanding (UGX)" tone="bad" value={<Money value={q.data.totals.outstanding} credit />} />
+          <Stat label="Outstanding (UGX)" tone="bad" value={<Money value={q.data.totals.outstanding} />} />
         </div>
       )}
       <Card padded={false}>
@@ -72,7 +72,7 @@ export function ArrearsPage() {
                     <td className="num"><Money value={r.totalBilled} /></td>
                     <td className="num"><Money value={r.totalPaid} /></td>
                     {/* FR-1304: owing in red, settled in green. */}
-                    <td className={`num font-semibold ${Number(r.outstanding) > 0 ? 'text-red-700' : 'text-emerald-700'}`}><Money value={r.outstanding} credit /></td>
+                    <td className={`num font-semibold ${Number(r.outstanding) > 0 ? 'text-red-700' : 'text-emerald-700'}`}><Money value={r.outstanding} />{Number(r.credit) > 0 && <span className="block text-xs font-normal text-emerald-700">credit <Money value={r.credit} /></span>}</td>
                     <td className="num">{r.unpaidItems}</td>
                   </tr>
                 ))}
@@ -91,7 +91,7 @@ interface Statement {
   pupil: { id: number; pupilCode: string; fullName: string; className: string; sectionName: string; status: string; guardianName: string | null; phonePrimary: string | null; address: string | null };
   charges: Charge[];
   payments: Array<{ receiptNo: string; paymentDate: string; feeItemName: string; termLabel: string; amount: string; method: string; reference: string | null; reversed: boolean }>;
-  totals: { totalBilled: string; totalPaid: string; outstanding: string; status: string; statusLabel: string };
+  totals: { totalBilled: string; totalPaid: string; outstanding: string; credit: string; status: string; statusLabel: string };
   generatedAt: string;
 }
 
@@ -157,7 +157,7 @@ export function StatementPage() {
         <section className="mt-4 grid grid-cols-3 gap-3 text-center">
           <div className="rounded border border-slate-200 p-2"><p className="text-xs uppercase text-slate-500">Total billed</p><p className="font-semibold"><Money value={s.totals.totalBilled} /></p></div>
           <div className="rounded border border-slate-200 p-2"><p className="text-xs uppercase text-slate-500">Total paid</p><p className="font-semibold"><Money value={s.totals.totalPaid} /></p></div>
-          <div className="rounded border border-slate-200 p-2"><p className="text-xs uppercase text-slate-500">Outstanding</p><p className="font-semibold"><Money value={s.totals.outstanding} credit /></p><StatusBadge status={s.totals.status} label={s.totals.statusLabel} /></div>
+          <div className="rounded border border-slate-200 p-2"><p className="text-xs uppercase text-slate-500">Outstanding</p><p className="font-semibold"><Money value={s.totals.outstanding} /></p><StatusBadge status={s.totals.status} label={s.totals.statusLabel} />{Number(s.totals.credit) > 0 && <p className="mt-1 text-xs text-emerald-700">Credit: UGX <Money value={s.totals.credit} /></p>}</div>
         </section>
         <h3 className="mt-6 font-semibold">Charges</h3>
         {terms.length === 0 ? <Empty title="No charges" /> : (
