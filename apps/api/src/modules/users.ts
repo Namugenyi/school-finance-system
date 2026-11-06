@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import { handle, idParam, pagination, parse } from '../lib/http';
 import { badRequest, conflict, notFound } from '../lib/errors';
-import { audit } from '../lib/audit';
+import { audit, redactAuditEntry } from '../lib/audit';
 import { currentUser, requirePermission } from '../auth/session';
 import { ALL_PERMISSIONS, PERMISSIONS } from '../auth/permissions';
 import { hashPassword, passwordSchema, temporaryPassword } from '../auth/routes';
@@ -290,6 +290,7 @@ auditRouter.get(
       prisma.auditLog.findMany({ where, orderBy: { id: 'desc' }, skip, take }),
       prisma.auditLog.count({ where }),
     ]);
-    return { items, total, page, pageSize };
+    const perms = currentUser(req).permissions;
+    return { items: items.map((e) => redactAuditEntry(e, perms)), total, page, pageSize };
   }),
 );

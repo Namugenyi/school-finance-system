@@ -12,6 +12,7 @@ import { sendCsv, wantsCsv } from '../lib/csv';
 import { currentUser, hasPermission, requirePermission } from '../auth/session';
 import { assertDifferentApprover, assertWithinApprovalLimit, receiptYear } from '../finance/policies';
 import { checkTermOpen } from '../finance/periods';
+import { pupilOwed } from '../finance/figures';
 import { assertRefCode, getSettings } from './setup';
 import { moneyInput } from './fees';
 import { loadCharges, userNames } from './charges';
@@ -206,7 +207,7 @@ router.get(
     const settings = await getSettings(prisma);
     const methods = await prisma.referenceValue.findMany({ where: { list: { code: 'PAYMENT_METHOD' } } });
     const balances = await prisma.chargeBalance.findMany({ where: { chargeId: { in: receipt.lines.map((l) => l.chargeId) } } });
-    const pupilBalance = await prisma.chargeBalance.aggregate({ where: { pupilId: receipt.pupilId, voided: false }, _sum: { balance: true } });
+    const pupilBalance = await pupilOwed(prisma, receipt.pupilId);
     const terms = [...new Set(receipt.lines.map((l) => `${l.charge.term.name} ${l.charge.term.academicYear.year}`))];
     return {
       school: { name: settings.schoolName, address: settings.address, phone: settings.phone, email: settings.email, registrationNo: settings.registrationNo, footer: settings.receiptFooter },
@@ -239,7 +240,8 @@ router.get(
       createdAt: receipt.createdAt,
       reversed: receipt.reversedAt !== null,
       reversal: receipt.reversal ? { status: receipt.reversal.status, reason: receipt.reversal.reason, requestedAt: receipt.reversal.requestedAt, decidedAt: receipt.reversal.decidedAt } : null,
-      pupilOutstanding: money(pupilBalance._sum.balance),
+      pupilOutstanding: money(pupilBalance.outstanding),
+      pupilCredit: money(pupilBalance.credit),
     };
   }),
 );
@@ -338,6 +340,7 @@ async function carryForwardRoutes(lines: { amount: Prisma.Decimal; charge: { id:
     const chain: ChainLink[] = [{ id: l.charge.id, termId: l.charge.termId }];
     let next = await prisma.charge.findUnique({ where: { sourceChargeId: l.charge.id } });
     while (next) {
+      if (next.voidedAt) throw badRequest('This receipt pays a carried-forward charge whose Arrears B/F charge has been voided, so the reversed amount has nowhere to go. Ask the administrator to look at it.');
       chain.push({ id: next.id, termId: next.termId });
       if (!dec(next.carriedForwardAmount).gt(0)) break;
       next = await prisma.charge.findUnique({ where: { sourceChargeId: next.id } });

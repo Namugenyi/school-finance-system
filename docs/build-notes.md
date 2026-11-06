@@ -24,7 +24,10 @@ How the build implements STJA-FRS-v12 and the seven decisions Tina approved on 1
 
 Other choices made where the FRS left a gap:
 
-- An overpayment is allowed only after the cashier confirms it, and shows as a credit (marked "CR") on that fee item.
+- An overpayment is allowed only after the cashier confirms it, and shows as a credit (marked "CR") on that fee item. A pupil's "outstanding" (arrears list, statement, pupil page, receipt) counts only what is still owed, the same as the dashboard; any credit is shown beside it and never taken off another item's debt (app check, 06/11/2026).
+- An Arrears B/F charge cannot be voided, so a carried debt can't be written off by one person. A wrong debt is corrected on the original charge or with a discount, which needs approval.
+- The audit log shows each viewer only what their role could see on the record: guardian contact details need "View parent and guardian contact details", and staff and payroll entries need "View staff, salaries and payroll".
+- If a revised term-close snapshot is rejected, the next revision can still be prepared.
 - A closed term can still be corrected by someone with the "post to a closed term" permission (the head teacher by default). Such entries are flagged, listed on the term close page, and need a revised snapshot. The approved snapshot is frozen by the database and kept.
 - Approving a term close re-checks the live figures. If anything changed since the snapshot was prepared, approval is refused.
 - Repeating a billing run, a payment or a carry-forward (a double click or a dropped connection) cannot create duplicates.
@@ -47,6 +50,6 @@ These need the school, not more code:
 
 ## Tests
 
-- `apps/api/test`: 87 tests against a real Postgres, covering the money rules, permissions, approvals by a second person, duplicate protection, carry-forward, payroll, term close, reports reconciling to each other, and security (CSRF, lockout, session expiry, CSV formula injection).
+- `apps/api/test`: 119 tests against a real Postgres, covering the money rules, permissions, approvals by a second person, duplicate protection, carry-forward, payroll, term close, reports reconciling to each other, and security (CSRF, lockout, session expiry, CSV formula injection).
 - `apps/api/test/frs-conformance.test.ts`: 53 tests written from the FRS text, independent of the build's own tests, including a 500-pupil capacity check.
-- `apps/web/e2e`: 12 browser journeys through the real screens, from registering a pupil to carrying arrears into the next year.
+- `apps/web/e2e`: 16 browser journeys through the real screens, from registering a pupil to carrying arrears into the next year.

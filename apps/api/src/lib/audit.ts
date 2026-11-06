@@ -30,3 +30,30 @@ export async function audit(
     },
   });
 }
+
+/** Pupil fields that need pupils.contacts on the normal screens (matches serializePupil). */
+const CONTACT_FIELDS = ['phonePrimary', 'phoneAlt', 'address', 'emergencyName', 'emergencyRelationship', 'emergencyRelationshipOther', 'emergencyPhone'];
+/** Audit entries about staff and payroll hold salaries and tax numbers, which need payroll.view. */
+const PAYROLL_ENTITIES = new Set(['Staff', 'PayrollRun', 'PayrollEntry']);
+const HIDDEN = '(hidden: you do not have access to this information)';
+
+function withoutContacts(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const copy: Record<string, unknown> = { ...(value as Record<string, unknown>) };
+  for (const k of CONTACT_FIELDS) if (k in copy) copy[k] = HIDDEN;
+  return copy;
+}
+
+/**
+ * The audit log keeps full before/after values, so a viewer sees only what their role could see on
+ * the record itself: pupil contact details need pupils.contacts and staff or payroll details need payroll.view.
+ */
+export function redactAuditEntry<T extends { entityType: string; before: unknown; after: unknown }>(entry: T, permissions: Set<string>): T {
+  if (PAYROLL_ENTITIES.has(entry.entityType) && !permissions.has('payroll.view')) {
+    return { ...entry, before: entry.before == null ? entry.before : HIDDEN, after: entry.after == null ? entry.after : HIDDEN };
+  }
+  if ((entry.entityType === 'Pupil' || entry.entityType === 'PupilHistory') && !permissions.has('pupils.contacts')) {
+    return { ...entry, before: withoutContacts(entry.before), after: withoutContacts(entry.after) };
+  }
+  return entry;
+}

@@ -89,7 +89,7 @@ export function NewPaymentPage() {
     queryFn: () => api.get<Paged<{ id: number; pupilCode: string; fullName: string; className: string; status: string }>>(`/pupils${qs({ search: pupilSearch, pageSize: 15 })}`),
     enabled: pupilSearch.length >= 2,
   });
-  const pupil = useQuery({ queryKey: ['pupil', pupilId], queryFn: () => api.get<{ id: number; pupilCode: string; fullName: string; className: string; status: string; totals: { balance: string } }>(`/pupils/${pupilId}`), enabled: !!pupilId });
+  const pupil = useQuery({ queryKey: ['pupil', pupilId], queryFn: () => api.get<{ id: number; pupilCode: string; fullName: string; className: string; status: string; totals: { balance: string; credit: string } }>(`/pupils/${pupilId}`), enabled: !!pupilId });
   const charges = useQuery({ queryKey: ['allocatable', pupilId], queryFn: () => api.get<Charge[]>(`/payments/allocatable/${pupilId}`), enabled: !!pupilId });
   useEffect(() => setAmounts({}), [pupilId]);
 
@@ -148,7 +148,8 @@ export function NewPaymentPage() {
               </div>
               <div className="text-right">
                 <p className="text-xs uppercase tracking-wide text-slate-500">Outstanding (all years)</p>
-                <p className="text-xl font-semibold"><Money value={pupil.data?.totals.balance} credit /></p>
+                <p className="text-xl font-semibold"><Money value={pupil.data?.totals.balance} /></p>
+                {Number(pupil.data?.totals.credit) > 0 && <p className="text-xs text-emerald-700">Credit on overpaid items: UGX <Money value={pupil.data?.totals.credit} /></p>}
               </div>
               <Button variant="ghost" onClick={() => { setPupilId(''); setPupilSearch(''); }}>Change pupil</Button>
             </div>
@@ -215,7 +216,7 @@ interface ReceiptData {
   pupil: { id: number; pupilCode: string; fullName: string; className: string; sectionName: string; guardianName: string | null };
   lines: Array<{ chargeId: number; chargeNo: string; feeItemName: string; termLabel: string; amount: string; balanceAfter: string }>;
   total: string; method: string; methodLabel: string; reference: string | null; notes: string | null; receivedByName: string; createdAt: string;
-  reversed: boolean; reversal: { status: string; reason: string; requestedAt: string; decidedAt: string | null } | null; pupilOutstanding: string;
+  reversed: boolean; reversal: { status: string; reason: string; requestedAt: string; decidedAt: string | null } | null; pupilOutstanding: string; pupilCredit: string;
 }
 
 export function ReceiptPage() {
@@ -278,7 +279,7 @@ export function ReceiptPage() {
           <p><span className="text-slate-500">Method:</span> {r.methodLabel}</p>
           <p><span className="text-slate-500">Reference:</span> {r.reference ?? '—'}</p>
           <p><span className="text-slate-500">Received by:</span> {r.receivedByName}</p>
-          <p><span className="text-slate-500">Pupil’s total outstanding:</span> <strong>UGX {formatMoney(r.pupilOutstanding)}</strong></p>
+          <p><span className="text-slate-500">Pupil’s total outstanding:</span> <strong>UGX {formatMoney(r.pupilOutstanding)}</strong>{Number(r.pupilCredit) > 0 && <> (credit UGX {formatMoney(r.pupilCredit)})</>}</p>
           {r.notes && <p className="col-span-2"><span className="text-slate-500">Notes:</span> {r.notes}</p>}
         </section>
         <footer className="mt-12 grid grid-cols-2 gap-10 text-sm">

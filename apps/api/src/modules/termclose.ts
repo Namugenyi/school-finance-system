@@ -144,7 +144,8 @@ router.post(
     assertDifferentApprover(snap.recordedById, user.id);
     if (!body.approve) {
       if (!body.note) throw badRequest('Give a reason for rejecting');
-      await prisma.termSnapshot.update({ where: { id }, data: { status: 'REJECTED', approvedById: user.id, approvedByName: user.fullName, decidedAt: new Date(), decisionNote: body.note } });
+      // A rejected revision lets go of the approved snapshot it would have replaced, so the next revision can link to it.
+      await prisma.termSnapshot.update({ where: { id }, data: { status: 'REJECTED', supersedesId: null, approvedById: user.id, approvedByName: user.fullName, decidedAt: new Date(), decisionNote: body.note } });
       await audit(prisma, user, 'termclose.reject', 'TermSnapshot', id, { reason: body.note });
       return { ok: true };
     }

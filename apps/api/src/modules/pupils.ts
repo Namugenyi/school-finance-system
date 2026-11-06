@@ -10,6 +10,7 @@ import { nextPupilCode } from '../lib/ids';
 import { money } from '../lib/money';
 import { currentUser, hasPermission, requirePermission } from '../auth/session';
 import { assertRefCode, getSettings, otherText } from './setup';
+import { pupilOwed } from '../finance/figures';
 
 export const router = Router();
 
@@ -144,17 +145,18 @@ router.get(
     const id = idParam(req);
     const pupil = await prisma.pupil.findUnique({ where: { id }, include: pupilInclude });
     if (!pupil) throw notFound('Pupil');
-    const [history, balances] = await Promise.all([
+    const [history, balances, owed] = await Promise.all([
       prisma.pupilHistory.findMany({
         where: { pupilId: id },
         include: { schoolClass: { include: { section: true } }, term: { include: { academicYear: true } } },
         orderBy: [{ effectiveDate: 'desc' }, { id: 'desc' }],
       }),
-      prisma.chargeBalance.aggregate({ where: { pupilId: id, voided: false }, _sum: { netDue: true, totalPaid: true, balance: true } }),
+      prisma.chargeBalance.aggregate({ where: { pupilId: id, voided: false }, _sum: { netDue: true, totalPaid: true } }),
+      pupilOwed(prisma, id),
     ]);
     return {
       ...serializePupil(pupil, hasPermission(req.user, 'pupils.contacts')),
-      totals: { netDue: money(balances._sum.netDue), totalPaid: money(balances._sum.totalPaid), balance: money(balances._sum.balance) },
+      totals: { netDue: money(balances._sum.netDue), totalPaid: money(balances._sum.totalPaid), balance: money(owed.outstanding), credit: money(owed.credit) },
       history: history.map((h) => ({
         id: h.id,
         eventType: h.eventType,
