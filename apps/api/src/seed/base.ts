@@ -13,7 +13,7 @@ import { dec } from '../lib/money';
 export async function seedBase(db: PrismaClient, opts: { schoolName?: string; startYear?: number } = {}) {
   await db.schoolSettings.upsert({
     where: { id: 1 },
-    create: { id: 1, schoolName: opts.schoolName ?? 'Supreme Tower Junior Academy', address: 'Kasangati, Wakiso District, Uganda', pupilIdStartYear: opts.startYear ?? new Date().getFullYear() },
+    create: { id: 1, schoolName: opts.schoolName ?? 'Supreme Tower Junior School', address: 'Kasangati, Wakiso District, Uganda', pupilIdStartYear: opts.startYear ?? new Date().getFullYear() },
     update: {},
   });
 

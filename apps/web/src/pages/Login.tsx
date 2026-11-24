@@ -68,7 +68,7 @@ export function LoginPage() {
       {/* Left half: solid navy with the school badge. */}
       <header className="flex flex-col items-center justify-center bg-gradient-to-b from-[#1B1B36] to-[#232541] px-6 py-10 text-center text-white sm:py-14 lg:sticky lg:top-0 lg:h-screen lg:px-12">
         <img src="/stja-logo.webp" alt="Supreme Tower Junior School logo" width={288} height={288} className="mb-5 h-28 w-28 drop-shadow-xl sm:h-40 sm:w-40 lg:mb-8 lg:h-72 lg:w-72" />
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl lg:leading-tight">Supreme Tower Junior Academy</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl lg:leading-tight">Supreme Tower Junior School</h1>
         <p className="mt-2 text-base font-medium text-brand-100 sm:text-lg">Finance &amp; Accounts</p>
         <p className="mt-4 text-sm text-brand-200 lg:mt-8">Kasangati, Uganda · Authorised staff only</p>
       </header>

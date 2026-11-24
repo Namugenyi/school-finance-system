@@ -156,7 +156,7 @@ export function Layout({ children }: { children?: ReactNode }) {
           <span className="flex h-9 w-9 items-center justify-center rounded-md bg-accent-600 text-lg font-bold text-white">S</span>
           <span className="leading-tight">
             <span className="block text-sm font-semibold text-white">STJA Finance</span>
-            <span className="block text-[11px] text-brand-200">Supreme Tower Junior Academy</span>
+            <span className="block text-[11px] text-brand-200">Supreme Tower Junior School</span>
           </span>
         </Link>
         {nav}

@@ -2,7 +2,7 @@
   "name": "stja-finance",
   "private": true,
   "version": "0.1.0",
-  "description": "Supreme Tower Junior Academy finance and accounts management system",
+  "description": "Supreme Tower Junior School finance and accounts management system",
   "workspaces": [
     "apps/api",
     "apps/web"

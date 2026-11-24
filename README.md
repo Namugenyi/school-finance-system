@@ -1,6 +1,6 @@
 # STJA School Finance & Accounts System
 
-Web application for Supreme Tower Junior Academy, Kasangati, built from the functional requirements specification STJA-FRS-v12. It replaces the 18-sheet workbook with one shared system for pupils, fees, billing, payments and receipts, arrears, statements, expenses, owner funds, payroll, carry-forward, term close and reports. Grades, attendance and learning tools are out of scope.
+Web application for Supreme Tower Junior School, Kasangati, built from the functional requirements specification STJA-FRS-v12. It replaces the 18-sheet workbook with one shared system for pupils, fees, billing, payments and receipts, arrears, statements, expenses, owner funds, payroll, carry-forward, term close and reports. Grades, attendance and learning tools are out of scope.
 
 Amounts are in Uganda shillings with two decimals. Dates are shown and typed as DD/MM/YYYY, in Kampala time.
 

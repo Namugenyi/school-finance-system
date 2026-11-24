@@ -44,7 +44,7 @@ const FIRST = ['Amina', 'Brian', 'Catherine', 'Daniel', 'Esther', 'Francis', 'Gr
 const LAST = ['Nakato', 'Okello', 'Namubiru', 'Ssempijja', 'Achieng', 'Mugisha', 'Nabirye', 'Kato', 'Atim', 'Lubega', 'Nansubuga', 'Opio', 'Babirye', 'Waiswa', 'Akello', 'Tumusiime', 'Nalwoga', 'Kizza', 'Auma', 'Mukasa'];
 
 async function main() {
-  await seedBase(prisma, { schoolName: 'Supreme Tower Junior Academy (DEMO DATA)', startYear: 2026 });
+  await seedBase(prisma, { schoolName: 'Supreme Tower Junior School (DEMO DATA)', startYear: 2026 });
   if (process.env.SEED_DEMO === 'false') return console.log('Base data seeded.');
   if ((await prisma.pupil.count()) > 0 || (await prisma.user.count()) > 0) {
     return console.log('The database already has users or pupils, so demo data was not added.');

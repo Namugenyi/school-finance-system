@@ -216,7 +216,7 @@ describe('Receipts (FR-1200)', () => {
     const c = (await chargesOf(bursar, p.id))[0];
     const r = await pay(bursar, p.id, [{ chargeId: c.id, amount: '1000' }]);
     const rec = (await bursar.get(`/api/payments/receipts/${r.body.receiptNo}`)).body;
-    expect(JSON.stringify(rec)).toMatch(/Supreme Tower Junior Academy/);
+    expect(JSON.stringify(rec)).toMatch(/Supreme Tower Junior School/);
     expect(rec.pupil.pupilCode).toBe(p.pupilCode);
   });
 });
